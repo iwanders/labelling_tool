@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Classification thingy.</title>
+    <!-- open layers -->
+    <link rel="stylesheet" href="ol-v5.3.0-dist/ol.css" type="text/css">
+    <script type="text/javascript" src="ol-v5.3.0-dist/ol.js"></script>
+
+    <!-- ol-ext -->
+    <link rel="stylesheet" href="ol-ext-60e17ad-dist/ol-ext.css" />
+    <script type="text/javascript" src="ol-ext-60e17ad-dist/ol-ext.js"></script>
+
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="font-awesome-4.7.0/css/font-awesome.min.css">
+  </head>
+  <body>
+    <div id="map" class="map"></div>
+    <div class="options" >
+    <div class="info"></div>
+  </div>
+    <script>
+    var Map = ol.Map;
+    var View = ol.View;
+    var Projection = ol.proj.Projection;
+    var ImageLayer = ol.layer.Image;
+    var Static = ol.source.ImageStatic;
+
+      // Map views always need a projection.  Here we just want to map image
+      // coordinates directly to map coordinates, so we create a projection that uses
+      // the image extent in pixels.
+      var extent = [0, 0, 1024, 968];
+      var projection = new Projection({
+        code: 'xkcd-image',
+        units: 'pixels',
+        extent: extent
+      });
+
+      var static_layer = new ImageLayer({
+            source: new Static({
+              attributions: '© <a href="http://xkcd.com/license.html">xkcd</a>',
+              url: 'https://imgs.xkcd.com/comics/online_communities.png',
+              projection: projection,
+              imageExtent: extent
+            })
+          });
+    var vector = new ol.layer.Vector( { source: new ol.source.Vector() })
+
+      var map = new Map({
+        layers: [
+          static_layer, vector
+        ],
+        target: 'map',
+        view: new View({
+          projection: projection,
+//~           center: getCenter(extent),
+          center: [512, 512],
+          zoom: 2,
+          maxZoom: 8
+        })
+      });
+
+    // Add the editbar
+    var edit = new ol.control.EditBar({
+    source: vector.getSource(),
+    interactions:{
+      DrawPoint:false,
+      DrawLine:false,
+      Transform:false,
+      Offset:false,
+      Split:false
+    }});
+    map.addControl(edit);
+
+    // Add a tooltip
+    var tooltip = new ol.Overlay.Tooltip();
+    map.addOverlay(tooltip);
+
+
+    // Undo redo interaction
+    var undoInteraction = new ol.interaction.UndoRedo();
+    map.addInteraction(undoInteraction);
+    // Prevent selection of a deleted feature
+    undoInteraction.on('undo', function(e) {
+      if (e.action.type === 'addfeature') {
+        edit.getInteraction('Select').getFeatures().clear();
+        edit.getInteraction('Transform').select();
+      }
+    });
+
+    // Add buttons to the bar
+    var bar = new ol.control.Bar({ 
+      group: true,
+      controls: [
+        new ol.control.Button({
+          html: '<i class="fa fa-undo" ></i>',
+          title: 'undo...',
+          handleClick: function() {
+            undoInteraction.undo();
+          }
+        }),
+        new ol.control.Button({
+          html: '<i class="fa fa-repeat" ></i>',
+          title: 'redo...',
+          handleClick: function() {
+            undoInteraction.redo();
+          }
+        })
+      ]
+    });
+    edit.addControl(bar);
+
+    </script>
+  </body>
+</html>
