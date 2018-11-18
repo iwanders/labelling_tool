@@ -1,0 +1,5 @@
+classes:
+  - type: text
+    description: Draw polygons around text.
+  - type: geometry
+    description: Make polygons around geometry.

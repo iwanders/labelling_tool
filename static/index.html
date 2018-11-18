@@ -9,14 +9,21 @@
     <!-- ol-ext -->
     <link rel="stylesheet" href="ol-ext-60e17ad-dist/ol-ext.css" />
     <script type="text/javascript" src="ol-ext-60e17ad-dist/ol-ext.js"></script>
-
+  
     <!-- FontAwesome -->
     <link rel="stylesheet" href="font-awesome-4.7.0/css/font-awesome.min.css">
+
+    <!-- jQuery -->
+    <script type="text/javascript" src="jquery-1.11.0.min.js"></script>
+    <script type="text/javascript" src="main.js"></script>
   </head>
   <body>
+    <div class="info">
+      <button id="info_prev"><i class="fa fa-arrow-left"></i>prev</button>
+      <input type="number" id="info_entry_current" name="info_entry_current" min="1" max="100" value="1" style="width:5%;"> / <span id="info_entry_count">--</span>
+      <button id="info_next">next <i class="fa fa-arrow-right"></i></button>
+    </div>
     <div id="map" class="map"></div>
-    <div class="options" >
-    <div class="info"></div>
   </div>
     <script>
     var Map = ol.Map;
@@ -37,17 +44,16 @@
 
       var static_layer = new ImageLayer({
             source: new Static({
-              attributions: '© <a href="http://xkcd.com/license.html">xkcd</a>',
               url: 'https://imgs.xkcd.com/comics/online_communities.png',
               projection: projection,
               imageExtent: extent
             })
           });
-    var vector = new ol.layer.Vector( { source: new ol.source.Vector() })
+    var vector_layer = new ol.layer.Vector( { source: new ol.source.Vector() })
 
       var map = new Map({
         layers: [
-          static_layer, vector
+          static_layer, vector_layer
         ],
         target: 'map',
         view: new View({
@@ -61,14 +67,14 @@
 
     // Add the editbar
     var edit = new ol.control.EditBar({
-    source: vector.getSource(),
-    interactions:{
-      DrawPoint:false,
-      DrawLine:false,
-      Transform:false,
-      Offset:false,
-      Split:false
-    }});
+      source: vector_layer.getSource(),
+      interactions:{
+        DrawPoint:false,
+        DrawLine:false,
+        Transform:false,
+        Offset:false,
+        Split:false
+      }});
     map.addControl(edit);
 
     // Add a tooltip
@@ -109,6 +115,8 @@
     });
     edit.addControl(bar);
 
+      var control = new Control();
+      control.init(static_layer, vector_layer, map, projection);
     </script>
   </body>
 </html>

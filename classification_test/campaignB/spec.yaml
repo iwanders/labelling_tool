@@ -1,0 +1,5 @@
+classes:
+  - type: math
+    description: Draw polygons around math.
+  - type: greek
+    description: Draw polygons around Greek letters.

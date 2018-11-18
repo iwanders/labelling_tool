@@ -1,0 +1,4 @@
+foo: bar
+classes:
+  - type: anything
+    description: Root specifies you can do whatever
