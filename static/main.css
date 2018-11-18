@@ -1,0 +1,23 @@
+
+.info .label {
+    border: none;
+    color: black;
+    padding: 15px 32px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 16px;
+	margin: 5px;
+    transition-duration: 0.4s;
+}
+
+.info .label.editable {
+	border-color: black;
+	border: solid;
+	border-width: 3px;
+    padding: 12px 29px;
+}
+
+.info .label.hidden {
+	background-color: gray !important;  /* bad practice, but hey... */
+}

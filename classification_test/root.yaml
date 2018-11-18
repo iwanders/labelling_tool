@@ -1,4 +1,5 @@
 foo: bar
 classes:
-  - type: anything
+  - label: anything
     description: Root specifies you can do whatever
+    color: 4CAF50

@@ -30,7 +30,7 @@ class Image:
         self.path = path
 
     def __repr__(self):
-        return "<{} - ({})>".format(self.path[-50:], ", ".join([x["type"] for x in self.config["classes"]]))
+        return "<{} - ({})>".format(self.path[-50:], ", ".join([x["label"] for x in self.config["classes"]]))
 
     def get_info(self):
         return {"path":self.path, "config":self.config}

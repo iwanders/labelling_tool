@@ -1,5 +1,7 @@
 classes:
-  - type: math
+  - label: math
     description: Draw polygons around math.
-  - type: greek
+    color: f44336
+  - label: greek
     description: Draw polygons around Greek letters.
+    color: f42070

@@ -15,13 +15,21 @@
 
     <!-- jQuery -->
     <script type="text/javascript" src="jquery-1.11.0.min.js"></script>
+
+    
     <script type="text/javascript" src="main.js"></script>
+    <link rel="stylesheet" href="main.css">
+    
   </head>
   <body>
     <div class="info">
       <button id="info_prev"><i class="fa fa-arrow-left"></i>prev</button>
       <input type="number" id="info_entry_current" name="info_entry_current" min="1" max="100" value="1" style="width:5%;"> / <span id="info_entry_count">--</span>
       <button id="info_next">next <i class="fa fa-arrow-right"></i></button>
+      <span id="labels" style="float: right">
+        <button class="label" >foo</span>
+        <button class="label" >bar</span>
+      </span>
     </div>
     <div id="map" class="map"></div>
   </div>
