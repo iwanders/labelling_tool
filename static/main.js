@@ -3,14 +3,15 @@ var Control = function ()
 {
 };
 
-Control.prototype.init = function(static_layer, vector_layer, map, projection)
+Control.prototype.init = function(static_layer, edit_layer, fixed_layer, map, projection)
 {
   var self = this;
   this.static_layer = static_layer;
-  this.vector_layer = vector_layer;
+  this.edit_layer = edit_layer;
+  this.fixed_layer = fixed_layer;
   this.map = map;
   this.projection = projection;
-  this.current_labels = [];
+
   self.entry_info = {config:{classes:[]}};
   self.entry_editable = new Set([]);
   self.entry_shown = new Set([]);
@@ -31,6 +32,54 @@ Control.prototype.init = function(static_layer, vector_layer, map, projection)
   {
     self.prevClick();
     event.preventDefault();
+  });
+
+  // Hook map entries.
+  this.edit_layer.setStyle(function(feature, view_res)
+  {
+    console.log(feature);
+    console.log("edit_layer wheehee");
+    return new ol.style.Style({
+      stroke: new ol.style.Stroke({
+        color: 'blue',
+        width: 3
+      }),
+      fill: new ol.style.Fill({
+        color: 'rgba(0, 0, 255, 0.1)'
+      })
+    });
+  });
+  /*
+  this.fixed_layer.style = function(feature, view_res)
+  {
+    console.log("wheehee");
+    return new Style({
+      stroke: new Stroke({
+        color: 'blue',
+        width: 3
+      }),
+      fill: new Fill({
+        color: 'rgba(0, 0, 255, 0.1)'
+      })
+    });
+  };
+  */
+  // patch ourselves into the interactions.
+  self.map.getInteractions().forEach(function (el, i, arr)
+  {
+    console.log(el);
+    if ((el instanceof ol.interaction.Draw) || el instanceof ol.interaction.DrawRegular)
+    {
+      el.on('drawend', function(e) {
+        console.log("draw end!!");
+        console.log(e);
+        e.feature.setProperties({
+          'id': 1234,
+          'name': 'yourCustomName'
+        })
+        console.log(e.feature, e.feature.getProperties());
+      });
+    }
   });
 };
 
@@ -77,35 +126,39 @@ Control.prototype.setEntry = function (entry)
     self.entry_info = data;
 
     // update the image.
-    var img_path = "entry_data?entry=" + (self.current - 1);
-    // Use browser to create the size and width of the image... xD
-    // https://stackoverflow.com/a/626505
-    var img = new Image();
-    img.onload = function() {
-      console.log(this.width + 'x' + this.height);
-      self.projection.setExtent([0, 0, this.width, this.height]);
-      self.static_layer.setSource(new Static({
-        url: img_path,
-        projection: self.projection,
-        imageExtent: [0, 0, this.width, this.height]
-      }));
-      self.map.getView().fit([0, 0, this.width, this.height], self.map.getSize()); 
-      //  self.map.getView().fit([0, 0, this.width, this.height], { constrainResolution: false });
-    }
-    img.src = img_path;   // load the image, then when that's done update the map now that we know the resolution.
-
+    self.setStaticImage("entry_data?entry=" + (self.current - 1));
 
     // Update the label handler.
     self.updateAvailableLabels();
   });
 }
 
+Control.prototype.setStaticImage = function(img_path)
+{
+  var self = this;
+  // Use browser to create the size and width of the image... xD
+  // https://stackoverflow.com/a/626505
+  var img = new Image();
+  img.onload = function() {
+    console.log(this.width + 'x' + this.height);
+    self.projection.setExtent([0, 0, this.width, this.height]);
+    self.static_layer.setSource(new Static({
+      url: img_path,
+      projection: self.projection,
+      imageExtent: [0, 0, this.width, this.height]
+    }));
+    self.map.getView().fit([0, 0, this.width, this.height], self.map.getSize()); 
+    //  self.map.getView().fit([0, 0, this.width, this.height], { constrainResolution: false });
+  }
+  img.src = img_path;   // load the image, then when that's done update the map now that we know the resolution.
+};
+
 Control.prototype.updateAvailableLabels = function ()
 {
   var self = this;
   var labels = $("#labels");
   labels.text(""); // clear current labels.
-  var previous_editable = self.entry_editable
+  var previous_editable = self.entry_editable;  // try to conserve the current editable label.
 
   self.entry_editable = new Set([]);
   self.entry_shown = new Set([]);
@@ -135,6 +188,7 @@ Control.prototype.updateAvailableLabels = function ()
       }
       event.preventDefault();
       console.log(self.entry_shown);
+      self.updateLayers();
     });
 
 
@@ -152,6 +206,8 @@ Control.prototype.updateAvailableLabels = function ()
       button.addClass( "editable" );
       event.preventDefault();
       console.log(self.entry_editable);
+
+      self.updateLayers();
     });
     labels.append(button);
 
@@ -161,6 +217,14 @@ Control.prototype.updateAvailableLabels = function ()
       button.click();
     }
   });
+}
+
+
+Control.prototype.updateLayers = function()
+{
+  // Put the non-hidden layers into the self.fixed_layer
+  // Put the editable layers into the self.edit_layer
+  // Style edit layer.
 }
 
 

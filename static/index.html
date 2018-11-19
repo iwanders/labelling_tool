@@ -57,11 +57,12 @@
               imageExtent: extent
             })
           });
-    var vector_layer = new ol.layer.Vector( { source: new ol.source.Vector() })
+    var edit_layer = new ol.layer.Vector( { source: new ol.source.Vector() })
+    var fixed_layer = new ol.layer.Vector( { source: new ol.source.Vector() })
 
       var map = new Map({
         layers: [
-          static_layer, vector_layer
+          static_layer, edit_layer, fixed_layer
         ],
         target: 'map',
         view: new View({
@@ -75,7 +76,7 @@
 
     // Add the editbar
     var edit = new ol.control.EditBar({
-      source: vector_layer.getSource(),
+      source: edit_layer.getSource(),
       interactions:{
         DrawPoint:false,
         DrawLine:false,
@@ -123,8 +124,8 @@
     });
     edit.addControl(bar);
 
-      var control = new Control();
-      control.init(static_layer, vector_layer, map, projection);
+    var control = new Control();
+    control.init(static_layer, edit_layer, fixed_layer, map, projection);
     </script>
   </body>
 </html>
