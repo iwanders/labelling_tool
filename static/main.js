@@ -11,10 +11,13 @@ Control.prototype.init = function(static_layer, edit_layer, fixed_layer, map, pr
   this.fixed_layer = fixed_layer;
   this.map = map;
   this.projection = projection;
+  this.current = 1;
 
   self.entry_info = {config:{classes:[]}};
   self.entry_editable = new Set([]);
   self.entry_shown = new Set([]);
+  self.entry_addition_type = "unknown";
+  self.entry_labels = {};
 
   $.getJSON( "info_data_extent", function( data ) {
     console.log("Info data extent!");
@@ -36,34 +39,14 @@ Control.prototype.init = function(static_layer, edit_layer, fixed_layer, map, pr
 
   // Hook map entries.
   this.edit_layer.setStyle(function(feature, view_res)
-  {
-    console.log(feature);
-    console.log("edit_layer wheehee");
-    return new ol.style.Style({
-      stroke: new ol.style.Stroke({
-        color: 'blue',
-        width: 3
-      }),
-      fill: new ol.style.Fill({
-        color: 'rgba(0, 0, 255, 0.1)'
-      })
+    {
+      return self.layerStyleFunction(feature, view_res, 3);
     });
-  });
-  /*
-  this.fixed_layer.style = function(feature, view_res)
-  {
-    console.log("wheehee");
-    return new Style({
-      stroke: new Stroke({
-        color: 'blue',
-        width: 3
-      }),
-      fill: new Fill({
-        color: 'rgba(0, 0, 255, 0.1)'
-      })
+  this.fixed_layer.setStyle(function(feature, view_res)
+    {
+      return self.layerStyleFunction(feature, view_res, 1);
     });
-  };
-  */
+
   // patch ourselves into the interactions.
   self.map.getInteractions().forEach(function (el, i, arr)
   {
@@ -74,10 +57,18 @@ Control.prototype.init = function(static_layer, edit_layer, fixed_layer, map, pr
         console.log("draw end!!");
         console.log(e);
         e.feature.setProperties({
-          'id': 1234,
-          'name': 'yourCustomName'
+          'label': self.entry_addition_type
         })
         console.log(e.feature, e.feature.getProperties());
+        setTimeout(function(){ self.saveFeatures(e); }, 10);  // needs small delay to get out of drawend processing.
+      });
+    }
+    if ((el instanceof ol.interaction.ModifyFeature))
+    {
+      console.log("Hooking");
+      el.on('modifyend', function(e)
+      {
+        self.saveFeatures(e);
       });
     }
   });
@@ -111,6 +102,11 @@ Control.prototype.prevClick = function()
   self.setEntry(self.current - 1);
 };
 
+Control.prototype.getEntry = function()
+{
+  return this.current - 1;
+}
+
 Control.prototype.setEntry = function (entry)
 {
   var self = this;
@@ -118,19 +114,19 @@ Control.prototype.setEntry = function (entry)
   this.current = correct_entry;
   console.log("Going to: " + this.current);
   $("#info_entry_current").val(this.current);
-
   // grab entry info.
-  $.getJSON( "entry_info", {entry:this.current - 1}, function( data ) {
+  $.getJSON( "entry_info", {entry:self.getEntry()}, function( data ) {
     console.log("entry_info!");
     console.log(data)
     self.entry_info = data;
 
     // update the image.
-    self.setStaticImage("entry_data?entry=" + (self.current - 1));
+    self.setStaticImage("entry_data?entry=" + (self.getEntry()));
 
     // Update the label handler.
     self.updateAvailableLabels();
   });
+  self.loadFeatures();
 }
 
 Control.prototype.setStaticImage = function(img_path)
@@ -165,10 +161,12 @@ Control.prototype.updateAvailableLabels = function ()
 
   var selected_editable = false;
 
+  self.entry_labels = {};
   $.each(self.entry_info["config"]["classes"], function (index, entry) {
     var label = entry.label;
     var button = $('<input type="button" class="label" value="' + label + '" style="background-color: #' + entry.color + '" />');
 
+    self.entry_labels[label] = entry;  // add thsi entry to the current entry labels.
     self.entry_shown.add(label);  // show by default.
     button.contextmenu(function(event) {
       if (self.entry_editable.has(label))  // if editable, don't allow changing visibilify
@@ -194,6 +192,7 @@ Control.prototype.updateAvailableLabels = function ()
 
     button.click(function (event)
     {
+      self.entry_addition_type = label;
       self.entry_editable = new Set([label]);  // allow just one editable.
       self.entry_shown.add(label);
       button.removeClass( "hidden" );
@@ -227,4 +226,83 @@ Control.prototype.updateLayers = function()
   // Style edit layer.
 }
 
+Control.prototype.layerStyleFunction = function(feature, view_res, border_width)
+{
+  var self = this;
 
+  // Try to retrieve the color.
+  var label_type = feature.getProperties()["label"];
+  if (label_type in self.entry_labels)
+  {
+    var entry = self.entry_labels[label_type];
+    var raw_color = ol.color.asArray("#" + entry.color);
+
+    // Slice them to prevent tainting ol.color's internal tables.
+    var stroke_color = raw_color.slice();
+    stroke_color[3] = 0.3;
+    var fill_color = raw_color.slice();
+    fill_color[3] = 0.3;
+    // Return style.
+    return new ol.style.Style({
+      stroke: new ol.style.Stroke({
+        color: stroke_color,
+        width: border_width
+      }),
+      fill: new ol.style.Fill({
+        color: fill_color,
+      })
+    });
+  }
+  else
+  {
+    console.log("Unknown label: " + label_type + " returning pretty gray :( ");
+    return new ol.style.Style({
+      stroke: new ol.style.Stroke({
+        color: 'gray',
+        width: border_width
+      }),
+      fill: new ol.style.Fill({
+        color: 'rgba(128, 128, 128, 0.1)'
+      })
+    });
+  }
+}
+
+
+Control.prototype.loadFeatures = function ()
+{
+  var self = this;
+  this.edit_layer.getSource().clear();
+  //  entry_features
+  // grab entry info.
+  $.getJSON( "entry_features", {entry: self.getEntry()}, function( data ) {
+    console.log("entry_features!");
+    console.log(data)
+    if (data != undefined)
+    {
+      self.edit_layer.getSource().addFeatures(   ((new ol.format.GeoJSON()).readFeatures(data)));
+    }
+  });
+}
+
+Control.prototype.saveFeatures = function (event)
+{
+  var self = this;
+  // Post all the features to the server!
+  var writer = new ol.format.GeoJSON();
+  var features_edit = self.edit_layer.getSource().getFeatures();
+  var features_fixed = self.fixed_layer.getSource().getFeatures();
+  var total = features_edit.concat(features_fixed);
+  var geojson_str = writer.writeFeaturesObject(total, {rightHanded:true});
+  console.log(geojson_str);
+  console.log(self.current);
+  $.ajax({
+    type: "POST",
+    url: "entry_save_features",
+    data: JSON.stringify({entry: self.getEntry(), features:geojson_str}),
+    dataType: 'JSON',
+    contentType: 'application/json',
+  }).fail(function() {
+    alert( "Failed to submit data to the server, closing page will lose changes." );
+  })
+};

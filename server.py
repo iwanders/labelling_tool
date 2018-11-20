@@ -28,6 +28,7 @@ class Image:
     def __init__(self, path, config):
         self.config = config
         self.path = path
+        self.data_path = path[0:path.rindex(".")] + ".json"
 
     def __repr__(self):
         return "<{} - ({})>".format(self.path[-50:], ", ".join([x["label"] for x in self.config["classes"]]))
@@ -45,7 +46,21 @@ class Image:
     def get_data(self):
         with open(self.path, "rb") as f:
             return f.read()
-        
+
+    def save_features(self, features):
+        with open(self.data_path, "w") as f:
+            json.dump(features, f)
+
+    def get_features(self):
+        try:
+            if os.path.isfile(self.data_path):
+                with open(self.data_path, "r") as f:
+                    return json.load(f)
+            else:
+                return None
+        except json.decoder.JSONDecodeError as e:
+            print("Huge problem, failed to decode json: {}".format(str(e)))
+        return None
 
 class Data:
     def __init__(self, path):
@@ -70,7 +85,7 @@ class Data:
                 except yaml.YAMLError as exc:
                     print("Failed parsing {}: {}".format(yaml_path, selfexc))
         for content_fname in glob.glob(os.path.join(path, "*.*")):
-            if (content_fname.endswith("yaml")):
+            if (content_fname.endswith("yaml") or content_fname.endswith("json")):
                 continue
             content_path = os.path.join(path, content_fname)
             # print("Content file: {}, properties: {}".format(cf, str(context)))
@@ -96,6 +111,11 @@ class Data:
         entry = self.entries[v]
         return entry.get_mime(), entry.get_data()
 
+    def save_features(self, entry, features):
+        self.entries[entry].save_features(features)
+
+    def get_features(self, entry):
+        return self.entries[entry].get_features()
 
 class Web(object):
 
@@ -121,6 +141,21 @@ class Web(object):
         cherrypy.response.headers['Content-Type'] = mime
         buffer = io.BytesIO(data)
         return cherrypy.lib.file_generator(buffer)
+
+    @cherrypy.expose
+    @cherrypy.tools.json_out()
+    @cherrypy.tools.json_in()
+    def entry_save_features(self, *args, **kwargs):
+        input_json = cherrypy.request.json
+        entry = input_json["entry"]
+        features = input_json["features"]
+        self.data.save_features(entry, features)
+        return {}
+
+    @cherrypy.expose
+    @cherrypy.tools.json_out()
+    def entry_features(self, entry):
+        return self.data.get_features(int(entry))
 
     def stop(self):
         # lets try to kill all handlers.
