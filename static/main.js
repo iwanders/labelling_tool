@@ -3,21 +3,21 @@ var Control = function ()
 {
 };
 
-Control.prototype.init = function(static_layer, edit_layer, fixed_layer, map, projection)
+Control.prototype.init = function(static_layer, edit_layer, map, projection)
 {
   var self = this;
   this.static_layer = static_layer;
   this.edit_layer = edit_layer;
-  this.fixed_layer = fixed_layer;
   this.map = map;
   this.projection = projection;
   this.current = 1;
 
   self.entry_info = {config:{classes:[]}};
-  self.entry_editable = new Set([]);
+  self.entry_current_label = "";
   self.entry_shown = new Set([]);
   self.entry_addition_type = "unknown";
   self.entry_labels = {};
+  self.entry_features = [];  // always holds the current features.
 
   $.getJSON( "info_data_extent", function( data ) {
     console.log("Info data extent!");
@@ -42,10 +42,6 @@ Control.prototype.init = function(static_layer, edit_layer, fixed_layer, map, pr
     {
       return self.layerStyleFunction(feature, view_res, 3);
     });
-  this.fixed_layer.setStyle(function(feature, view_res)
-    {
-      return self.layerStyleFunction(feature, view_res, 1);
-    });
 
   // patch ourselves into the interactions.
   self.map.getInteractions().forEach(function (el, i, arr)
@@ -59,6 +55,7 @@ Control.prototype.init = function(static_layer, edit_layer, fixed_layer, map, pr
         e.feature.setProperties({
           'label': self.entry_addition_type
         })
+        self.entry_features.push(e.feature);
         console.log(e.feature, e.feature.getProperties());
         setTimeout(function(){ self.saveFeatures(e); }, 10);  // needs small delay to get out of drawend processing.
       });
@@ -69,6 +66,20 @@ Control.prototype.init = function(static_layer, edit_layer, fixed_layer, map, pr
       el.on('modifyend', function(e)
       {
         self.saveFeatures(e);
+      });
+    }
+    if (el instanceof ol.interaction.Delete)
+    {
+      el.on("deleteend", function (event)
+      {
+        event.features.forEach(function (el, i, arr)
+        {
+          var index = self.entry_features.indexOf(el);
+          if (index > -1) {
+            self.entry_features.splice(index, 1);
+          }
+        });
+        setTimeout(function(){ self.saveFeatures(event); }, 10);  // needs small delay to get out of drawend processing.
       });
     }
   });
@@ -154,13 +165,8 @@ Control.prototype.updateAvailableLabels = function ()
   var self = this;
   var labels = $("#labels");
   labels.text(""); // clear current labels.
-  var previous_editable = self.entry_editable;  // try to conserve the current editable label.
 
-  self.entry_editable = new Set([]);
   self.entry_shown = new Set([]);
-
-  var selected_editable = false;
-
   self.entry_labels = {};
   $.each(self.entry_info["config"]["classes"], function (index, entry) {
     var label = entry.label;
@@ -169,7 +175,7 @@ Control.prototype.updateAvailableLabels = function ()
     self.entry_labels[label] = entry;  // add thsi entry to the current entry labels.
     self.entry_shown.add(label);  // show by default.
     button.contextmenu(function(event) {
-      if (self.entry_editable.has(label))  // if editable, don't allow changing visibilify
+      if (self.entry_current_label == label)  // if editable, don't allow changing visibilify
       {
         event.preventDefault();
         return;
@@ -193,7 +199,7 @@ Control.prototype.updateAvailableLabels = function ()
     button.click(function (event)
     {
       self.entry_addition_type = label;
-      self.entry_editable = new Set([label]);  // allow just one editable.
+      self.entry_current_label = label;  // This is the new addition type we'll do.
       self.entry_shown.add(label);
       button.removeClass( "hidden" );
       // remove all editable labels.
@@ -204,15 +210,15 @@ Control.prototype.updateAvailableLabels = function ()
       // Add the editable label to this one.
       button.addClass( "editable" );
       event.preventDefault();
-      console.log(self.entry_editable);
+      console.log(self.entry_current_label);
 
       self.updateLayers();
     });
     labels.append(button);
 
-    // If it was previously editable, set it in this update as well...
-    if (previous_editable.has(label))
+    if (index == 0)
     {
+      console.log("whehee");
       button.click();
     }
   });
@@ -221,9 +227,24 @@ Control.prototype.updateAvailableLabels = function ()
 
 Control.prototype.updateLayers = function()
 {
-  // Put the non-hidden layers into the self.fixed_layer
+  var self = this;
   // Put the editable layers into the self.edit_layer
   // Style edit layer.
+
+  var already_shown = new Set(self.edit_layer.getSource().getFeatures());
+
+  self.edit_layer.getSource().clear();
+
+  // Move anything that's not in editable to fixed.
+  for (let feature of self.entry_features)
+  {
+    var label_type = feature.getProperties()["label"];
+    if ((self.entry_current_label == label_type) || self.entry_shown.has(label_type))  // should be editable.
+    {
+      self.edit_layer.getSource().addFeature(feature);
+    }
+  }
+  console.log("entry_shown: ", self.entry_shown);
 }
 
 Control.prototype.layerStyleFunction = function(feature, view_res, border_width)
@@ -272,6 +293,7 @@ Control.prototype.layerStyleFunction = function(feature, view_res, border_width)
 Control.prototype.loadFeatures = function ()
 {
   var self = this;
+  self.entry_features = [];
   this.edit_layer.getSource().clear();
   //  entry_features
   // grab entry info.
@@ -280,8 +302,10 @@ Control.prototype.loadFeatures = function ()
     console.log(data)
     if (data != undefined)
     {
-      self.edit_layer.getSource().addFeatures(   ((new ol.format.GeoJSON()).readFeatures(data)));
+      self.entry_features = ((new ol.format.GeoJSON()).readFeatures(data));
+      //  self.edit_layer.getSource().addFeatures(self.entry_features);
     }
+    self.updateLayers()
   });
 }
 
@@ -290,10 +314,7 @@ Control.prototype.saveFeatures = function (event)
   var self = this;
   // Post all the features to the server!
   var writer = new ol.format.GeoJSON();
-  var features_edit = self.edit_layer.getSource().getFeatures();
-  var features_fixed = self.fixed_layer.getSource().getFeatures();
-  var total = features_edit.concat(features_fixed);
-  var geojson_str = writer.writeFeaturesObject(total, {rightHanded:true});
+  var geojson_str = writer.writeFeaturesObject(self.entry_features, {rightHanded:true});
   console.log(geojson_str);
   console.log(self.current);
   $.ajax({

@@ -58,11 +58,10 @@
             })
           });
     var edit_layer = new ol.layer.Vector( { source: new ol.source.Vector() })
-    var fixed_layer = new ol.layer.Vector( { source: new ol.source.Vector() })
 
       var map = new Map({
         layers: [
-          static_layer, edit_layer, fixed_layer
+          static_layer, edit_layer
         ],
         target: 'map',
         view: new View({
@@ -89,7 +88,6 @@
     // Add a tooltip
     var tooltip = new ol.Overlay.Tooltip();
     map.addOverlay(tooltip);
-
 
     // Undo redo interaction
     var undoInteraction = new ol.interaction.UndoRedo();
@@ -125,7 +123,7 @@
     edit.addControl(bar);
 
     var control = new Control();
-    control.init(static_layer, edit_layer, fixed_layer, map, projection);
+    control.init(static_layer, edit_layer, map, projection);
     </script>
   </body>
 </html>
