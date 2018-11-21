@@ -1,5 +1,5 @@
-foo: bar
+attributions: '© <a href="http://xkcd.com/license.html">xkcd</a>'
 classes:
   - label: anything
-    description: Root specifies you can do whatever
+    description: This root specifies you can label anything.
     color: 4CAF50
