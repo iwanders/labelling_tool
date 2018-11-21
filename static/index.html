@@ -23,9 +23,9 @@
   </head>
   <body>
     <div class="info">
-      <button id="info_prev"><i class="fa fa-arrow-left"></i>prev</button>
+      <button id="info_prev" class="button"><i class="fa fa-arrow-left"></i>prev</button>
       <input type="number" id="info_entry_current" name="info_entry_current" min="1" max="100" value="1" style="width:5%;"> / <span id="info_entry_count">--</span>
-      <button id="info_next">next <i class="fa fa-arrow-right"></i></button>
+      <button id="info_next"  class="button">next <i class="fa fa-arrow-right"></i></button>
       <span id="labels" style="float: right">
         <button class="label" >foo</span>
         <button class="label" >bar</span>
@@ -34,30 +34,30 @@
     <div id="map" class="map"></div>
   </div>
     <script>
-    var Map = ol.Map;
-    var View = ol.View;
-    var Projection = ol.proj.Projection;
-    var ImageLayer = ol.layer.Image;
-    var Static = ol.source.ImageStatic;
+      var Map = ol.Map;
+      var View = ol.View;
+      var Projection = ol.proj.Projection;
+      var ImageLayer = ol.layer.Image;
+      var Static = ol.source.ImageStatic;
 
       // Map views always need a projection.  Here we just want to map image
       // coordinates directly to map coordinates, so we create a projection that uses
       // the image extent in pixels.
-      var extent = [0, 0, 1024, 968];
+      var extent = [0, 0, 1024, 1024];
       var projection = new Projection({
-        code: 'xkcd-image',
+        code: 'static_image',
         units: 'pixels',
         extent: extent
       });
 
       var static_layer = new ImageLayer({
             source: new Static({
-              url: 'https://imgs.xkcd.com/comics/online_communities.png',
+              url: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
               projection: projection,
               imageExtent: extent
             })
           });
-    var edit_layer = new ol.layer.Vector( { source: new ol.source.Vector() })
+      var edit_layer = new ol.layer.Vector( { source: new ol.source.Vector() })
 
       var map = new Map({
         layers: [
@@ -66,64 +66,59 @@
         target: 'map',
         view: new View({
           projection: projection,
-//~           center: getCenter(extent),
           center: [512, 512],
-          zoom: 2,
-          maxZoom: 8
+          zoom: 1,
+          maxZoom: 7,
+          minZoom: -2
         })
       });
 
-    // Add the editbar
-    var edit = new ol.control.EditBar({
-      source: edit_layer.getSource(),
-      interactions:{
-        DrawPoint:false,
-        DrawLine:false,
-        Transform:false,
-        Offset:false,
-        Split:false
-      }});
-    map.addControl(edit);
+      // Add the editbar
+      var edit = new ol.control.EditBar({
+        source: edit_layer.getSource(),
+        interactions:{
+          DrawPoint:false,
+          DrawLine:false,
+          Offset:false,
+          Split:false
+        }});
+      map.addControl(edit);
 
-    // Add a tooltip
-    var tooltip = new ol.Overlay.Tooltip();
-    map.addOverlay(tooltip);
+      // Undo redo interaction
+      var undoInteraction = new ol.interaction.UndoRedo();
+      map.addInteraction(undoInteraction);
+      // Prevent selection of a deleted feature
+      undoInteraction.on('undo', function(e) {
+        if (e.action.type === 'addfeature') {
+          edit.getInteraction('Select').getFeatures().clear();
+          edit.getInteraction('Transform').select();
+        }
+      });
 
-    // Undo redo interaction
-    var undoInteraction = new ol.interaction.UndoRedo();
-    map.addInteraction(undoInteraction);
-    // Prevent selection of a deleted feature
-    undoInteraction.on('undo', function(e) {
-      if (e.action.type === 'addfeature') {
-        edit.getInteraction('Select').getFeatures().clear();
-        edit.getInteraction('Transform').select();
-      }
-    });
+      // Add buttons to the bar
+      var bar = new ol.control.Bar({ 
+        group: true,
+        controls: [
+          new ol.control.Button({
+            html: '<i class="fa fa-undo" ></i>',
+            title: 'undo...',
+            handleClick: function() {
+              undoInteraction.undo();
+            }
+          }),
+          new ol.control.Button({
+            html: '<i class="fa fa-repeat" ></i>',
+            title: 'redo...',
+            handleClick: function() {
+              undoInteraction.redo();
+            }
+          })
+        ]
+      });
+      edit.addControl(bar);
 
-    // Add buttons to the bar
-    var bar = new ol.control.Bar({ 
-      group: true,
-      controls: [
-        new ol.control.Button({
-          html: '<i class="fa fa-undo" ></i>',
-          title: 'undo...',
-          handleClick: function() {
-            undoInteraction.undo();
-          }
-        }),
-        new ol.control.Button({
-          html: '<i class="fa fa-repeat" ></i>',
-          title: 'redo...',
-          handleClick: function() {
-            undoInteraction.redo();
-          }
-        })
-      ]
-    });
-    edit.addControl(bar);
-
-    var control = new Control();
-    control.init(static_layer, edit_layer, map, projection);
+      var control = new Control();
+      control.init(static_layer, edit_layer, map, projection);
     </script>
   </body>
 </html>

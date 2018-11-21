@@ -8,12 +8,11 @@ import glob
 import yaml
 import copy
 import argparse
-# from cherrypy.lib import file_generator
 import io
 
 curdir = os.path.join(os.getcwd(), os.path.dirname(__file__)) 
 
-#https://stackoverflow.com/a/36584863
+# https://stackoverflow.com/a/36584863
 def extend_dict(extend_me, extend_by):
     if isinstance(extend_by, dict):
         for k, v in extend_by.items():
@@ -25,7 +24,11 @@ def extend_dict(extend_me, extend_by):
         extend_me += extend_by
 
 class Image:
+    """
+        Simple class to represent a single image.
+    """
     def __init__(self, path, config):
+        """Initialise an image given the path and the configuration that was created for this entry."""
         self.config = config
         self.path = path
         self.data_path = path[0:path.rindex(".")] + ".json"
@@ -34,6 +37,7 @@ class Image:
         return "<{} - ({})>".format(self.path[-50:], ", ".join([x["label"] for x in self.config["classes"]]))
 
     def get_info(self):
+        """Return a dictionary representing the information about this image."""
         return {"path":self.path, "config":self.config}
 
     def get_mime(self):
@@ -41,17 +45,20 @@ class Image:
             "png": "image/png",
             "jpg": "image/jpg"
         }
-        return mimes[self.path[self.path.rindex('.')+1:]]
+        return mimes[self.path[self.path.rindex('.')+1:].lower()]
 
     def get_data(self):
+        """Gets the raw bytes that represent the image data."""
         with open(self.path, "rb") as f:
             return f.read()
 
     def save_features(self, features):
+        """Write the features for this image to the disk."""
         with open(self.data_path, "w") as f:
             json.dump(features, f)
 
     def get_features(self):
+        """Attempt to get the features for this image from the disk."""
         try:
             if os.path.isfile(self.data_path):
                 with open(self.data_path, "r") as f:
@@ -67,74 +74,83 @@ class Data:
         self.path = path
         self.update_data()
 
-    """
-        Recursive functions that combines yaml files from each directory into one context that specifies classes.
-        If it encounters a data file it creates an Image object with the current context.
-    """
     @staticmethod
     def data_loader(path, context):
+        """
+            Recursive functions that combines yaml files from each directory into one context that specifies classes.
+            If it encounters a data file it creates an Image object with the current context.
+        """
         entries = []
+
+        # first, we parse the yaml files in this directory.
         yamlfiles = glob.glob(os.path.join(path, "*.yaml"))
         for yaml_fname in yamlfiles:
             print("Yamlfile: {}".format(yaml_fname))
             yaml_path = os.path.join(path, yaml_fname)
             with open(yaml_path, 'r') as f:
                 try:
+                    # we combine the current context with the yaml we load.
                     extend_dict(context, yaml.load(f))
-                    # context.update(yaml.load(f))
                 except yaml.YAMLError as exc:
                     print("Failed parsing {}: {}".format(yaml_path, selfexc))
+
+        # then we parse the data files in this directory.
         for content_fname in glob.glob(os.path.join(path, "*.*")):
             if (content_fname.endswith("yaml") or content_fname.endswith("json")):
                 continue
             content_path = os.path.join(path, content_fname)
             # print("Content file: {}, properties: {}".format(cf, str(context)))
             entries.append(Image(content_path, context))
+
+        # finally, we iterate down, copying the context.
         for root, dirs, files in os.walk(path):
             for d in dirs:
                 entries.extend(Data.data_loader(os.path.join(path, d), copy.deepcopy(context)))
         return entries
 
-    """
-        Returns information about the extent of the data.
-    """
+    
     def data_extent(self):
+        """Returns information about the extent of the data."""
         return {"entries":len(self.entries)}
 
     def update_data(self):
+        """Updates the data object by traversing through the path again in search of yaml and data files."""
         self.entries = self.data_loader(self.path, {})
 
-    def entry_info(self, v):
-        return self.entries[v].get_info()
+    def entry_info(self, index):
+        """Returns the info from a specific entry."""
+        return self.entries[index].get_info()
 
-    def entry_data(self, v):
-        entry = self.entries[v]
+    def entry_data(self, index):
+        """Gets the mimetype and the data for the given entry."""
+        entry = self.entries[index]
         return entry.get_mime(), entry.get_data()
 
-    def save_features(self, entry, features):
-        self.entries[entry].save_features(features)
+    def save_features(self, index, features):
+        """Saves features for this index."""
+        self.entries[index].save_features(features)
 
-    def get_features(self, entry):
-        return self.entries[entry].get_features()
+    def get_features(self, index):
+        """Retrieves features for this index."""
+        return self.entries[index].get_features()
 
 class Web(object):
-
+    """
+        This is the actual backend for the web interface. It's a very thin wrapper between Data and Image.
+    """
     def __init__(self, data):
         self.data = data
-        cherrypy.engine.subscribe("stop", self.stop)
 
     @cherrypy.expose
     @cherrypy.tools.json_out()
     def info_data_extent(self):
         return self.data.data_extent()
 
-    
     @cherrypy.expose
     @cherrypy.tools.json_out()
     def entry_info(self, entry):
         return self.data.entry_info(int(entry))
 
-    
     @cherrypy.expose
     def entry_data(self, entry):
         mime, data = self.data.entry_data(int(entry))
@@ -156,11 +172,6 @@ class Web(object):
     @cherrypy.tools.json_out()
     def entry_features(self, entry):
         return self.data.get_features(int(entry))
-
-    def stop(self):
-        # lets try to kill all handlers.
-        print("Closing down.")
-
 
 def start_classification_server(http_port, http_host, data):
     # set cherrypy configuration.
@@ -195,9 +206,8 @@ if __name__ == "__main__":
                         default=os.path.join(curdir, "classification_test"))
 
     args = parser.parse_args()
+    print("Traversing data folder in search of data.")
     data = Data(args.dir)
-    print(data.entries)
-    
-    
-
-    start_classification_server(1337, "127.0.0.1", data)
+    print("Found {} entries.".format(len(data.entries)))
+   
+    start_classification_server(args.port, args.host, data)

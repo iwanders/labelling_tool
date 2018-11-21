@@ -10,56 +10,59 @@ Control.prototype.init = function(static_layer, edit_layer, map, projection)
   this.edit_layer = edit_layer;
   this.map = map;
   this.projection = projection;
-  this.current = 1;
+
+  this.current = 1;  // current entry from the backend.
+
+  this.selecting_interactions = [];  // interactions that can select features.
 
   self.entry_info = {config:{classes:[]}};
-  self.entry_current_label = "";
-  self.entry_shown = new Set([]);
-  self.entry_addition_type = "unknown";
-  self.entry_labels = {};
+  self.entry_shown = new Set([]);  // currently shown classes
+  self.entry_current_label = "unknown";  // the current label we'll add.
+  self.entry_labels = {};    // holds all labels that we know for this entry.
   self.entry_features = [];  // always holds the current features.
 
+  // Retrieve the max entry index from the backend.
   $.getJSON( "info_data_extent", function( data ) {
-    console.log("Info data extent!");
     self.info_data_extent = data;
     self.updateInfoBox();
     self.setEntry(1);
   });
 
+  // Bind forwards / backwards buttons.
   $("#info_next").click(function (event)
   {
     self.nextClick();
     event.preventDefault();
   });
+
   $("#info_prev").click(function (event)
   {
     self.prevClick();
     event.preventDefault();
   });
 
-  // Hook map entries.
+  // Set the map style function.
   this.edit_layer.setStyle(function(feature, view_res)
-    {
-      return self.layerStyleFunction(feature, view_res, 3);
-    });
+  {
+    return self.layerStyleFunction(feature, view_res);
+  });
 
-  // patch ourselves into the interactions.
+  // Patch ourselves into the interactions.
   self.map.getInteractions().forEach(function (el, i, arr)
   {
-    console.log(el);
     if ((el instanceof ol.interaction.Draw) || el instanceof ol.interaction.DrawRegular)
     {
+      // Need to hook draw end to set the label.
       el.on('drawend', function(e) {
-        console.log("draw end!!");
-        console.log(e);
         e.feature.setProperties({
-          'label': self.entry_addition_type
+          'label': self.entry_current_label
         })
         self.entry_features.push(e.feature);
-        console.log(e.feature, e.feature.getProperties());
         setTimeout(function(){ self.saveFeatures(e); }, 10);  // needs small delay to get out of drawend processing.
       });
     }
+
+    // Need to hook modify to save.
     if ((el instanceof ol.interaction.ModifyFeature))
     {
       console.log("Hooking");
@@ -68,6 +71,7 @@ Control.prototype.init = function(static_layer, edit_layer, map, projection)
         self.saveFeatures(e);
       });
     }
+    // Need to hook delete because we need to discard this from the feature list.
     if (el instanceof ol.interaction.Delete)
     {
       el.on("deleteend", function (event)
@@ -82,9 +86,54 @@ Control.prototype.init = function(static_layer, edit_layer, map, projection)
         setTimeout(function(){ self.saveFeatures(event); }, 10);  // needs small delay to get out of drawend processing.
       });
     }
+
+    // Need selecting interactions to be able to switch labels on selected polygons.
+    if (el instanceof ol.interaction.Select)
+    {
+      self.selecting_interactions.push(el);
+    }
   });
 };
 
+/**
+ * @brief Returns a flat array of the features that are currently selected.
+ */
+Control.prototype.getSelectedFeatures = function ()
+{
+  var selectees = [];
+  for (let interaction of this.selecting_interactions)
+  {
+    interaction.getFeatures().forEach( function (el, i, arr)
+    {
+      selectees.push(el);
+    });
+  }
+  return selectees;
+}
+
+/**
+ * @brief Deselects features of a certain type.
+ */
+Control.prototype.deselect = function (deselect_labeltype)
+{
+  for (let interaction of this.selecting_interactions)
+  {
+    var features = interaction.getFeatures();
+    features.forEach( function (feature, i, arr)
+    {
+      console.log(arr);
+      var label_type = feature.getProperties()["label"];
+      if ((label_type == deselect_labeltype) || (deselect_labeltype == undefined))
+      {
+        features.removeAt(i);
+      }
+    });
+  }
+}
+
+/**
+ * @brief Updates the info box html with the current information regarding the info box.
+ */
 Control.prototype.updateInfoBox = function()
 {
   var self = this;
@@ -100,6 +149,7 @@ Control.prototype.updateInfoBox = function()
   $("#info_entry_count").text(self.info_data_extent.entries);
 };
 
+//! Advance the current entry index.
 Control.prototype.nextClick = function()
 {
   var self = this;
@@ -107,28 +157,35 @@ Control.prototype.nextClick = function()
   self.setEntry(self.current + 1);
 };
 
+//! Rewind the current entry index.
 Control.prototype.prevClick = function()
 {
   var self = this;
   self.setEntry(self.current - 1);
 };
 
+//! Get the current entry number as it would be on the backend.
 Control.prototype.getEntry = function()
 {
   return this.current - 1;
 }
 
+/**
+ * @brief Set the current entry index.
+ */
 Control.prototype.setEntry = function (entry)
 {
   var self = this;
   var correct_entry = Math.max(1, Math.min(entry, this.info_data_extent.entries));  // enforce sanity.
   this.current = correct_entry;
-  console.log("Going to: " + this.current);
+  self.deselect();
+
+  // Update the html value.
   $("#info_entry_current").val(this.current);
-  // grab entry info.
+
+  // grab entry info from the backend
   $.getJSON( "entry_info", {entry:self.getEntry()}, function( data ) {
-    console.log("entry_info!");
-    console.log(data)
+    console.log("entry_info:", data)
     self.entry_info = data;
 
     // update the image.
@@ -137,6 +194,8 @@ Control.prototype.setEntry = function (entry)
     // Update the label handler.
     self.updateAvailableLabels();
   });
+
+  // Load the features from the server.
   self.loadFeatures();
 }
 
@@ -147,7 +206,8 @@ Control.prototype.setStaticImage = function(img_path)
   // https://stackoverflow.com/a/626505
   var img = new Image();
   img.onload = function() {
-    console.log(this.width + 'x' + this.height);
+    // When load is finished, create the new static layer.
+    console.log("Image to be loaded is: " + this.width + 'x' + this.height);
     self.projection.setExtent([0, 0, this.width, this.height]);
     self.static_layer.setSource(new Static({
       url: img_path,
@@ -155,11 +215,13 @@ Control.prototype.setStaticImage = function(img_path)
       imageExtent: [0, 0, this.width, this.height]
     }));
     self.map.getView().fit([0, 0, this.width, this.height], self.map.getSize()); 
-    //  self.map.getView().fit([0, 0, this.width, this.height], { constrainResolution: false });
   }
   img.src = img_path;   // load the image, then when that's done update the map now that we know the resolution.
 };
 
+/**
+ * @brief Update the available labels in the top right and bind functions to them.
+ */
 Control.prototype.updateAvailableLabels = function ()
 {
   var self = this;
@@ -170,84 +232,103 @@ Control.prototype.updateAvailableLabels = function ()
   self.entry_labels = {};
   $.each(self.entry_info["config"]["classes"], function (index, entry) {
     var label = entry.label;
-    var button = $('<input type="button" class="label" value="' + label + '" style="background-color: #' + entry.color + '" />');
+    var button = $('<input type="button" class="label button" value="' + label + '" style="background-color: #' + entry.color + '" />');
 
     self.entry_labels[label] = entry;  // add thsi entry to the current entry labels.
     self.entry_shown.add(label);  // show by default.
-    button.contextmenu(function(event) {
-      if (self.entry_current_label == label)  // if editable, don't allow changing visibilify
+
+    // Right click
+    button.contextmenu(function(event)
+    {
+      if (self.entry_current_label == label)  // if editable, don't allow changing visibility
       {
         event.preventDefault();
         return;
       }
+
       if (self.entry_shown.has(label))
       {
+        self.deselect(label);  // deselecting all entries of this label, as we are hiding them.
         self.entry_shown.delete(label);
         button.addClass( "hidden" );
       }
       else
       {
+        // We are showing an entry.
         self.entry_shown.add(label);
         button.removeClass( "hidden" );
       }
       event.preventDefault();
-      console.log(self.entry_shown);
+
+      // Make sure the layer represents this.
       self.updateLayers();
     });
 
-
+    // left click
     button.click(function (event)
     {
-      self.entry_addition_type = label;
       self.entry_current_label = label;  // This is the new addition type we'll do.
+
+      // Be sure to show this entry.
       self.entry_shown.add(label);
       button.removeClass( "hidden" );
-      // remove all editable labels.
+
+      // Remove all other editable labels.
       $(".info .label.editable").each( function (i, entry)
       {
         $(entry).removeClass( "editable" );
       });
+
       // Add the editable label to this one.
       button.addClass( "editable" );
       event.preventDefault();
-      console.log(self.entry_current_label);
 
+      // If we had any selected components, switch their type;
+      for (let feature of self.getSelectedFeatures())
+      {
+        feature.setProperties({
+          'label': self.entry_current_label
+        });
+      }
+
+      // Make sure the layer represents this.
       self.updateLayers();
     });
     labels.append(button);
 
+    // By default, select the 0th index label.
     if (index == 0)
     {
-      console.log("whehee");
       button.click();
     }
   });
 }
 
-
+/**
+ * @brief Update the entries that can be shown on layers.
+ */
 Control.prototype.updateLayers = function()
 {
   var self = this;
-  // Put the editable layers into the self.edit_layer
-  // Style edit layer.
 
-  var already_shown = new Set(self.edit_layer.getSource().getFeatures());
-
+  // Clear the layer.
   self.edit_layer.getSource().clear();
 
-  // Move anything that's not in editable to fixed.
+  // Add the entries to the layer that we are interested in.
   for (let feature of self.entry_features)
   {
     var label_type = feature.getProperties()["label"];
-    if ((self.entry_current_label == label_type) || self.entry_shown.has(label_type))  // should be editable.
+    if (self.entry_shown.has(label_type))
     {
       self.edit_layer.getSource().addFeature(feature);
     }
   }
-  console.log("entry_shown: ", self.entry_shown);
 }
 
-Control.prototype.layerStyleFunction = function(feature, view_res, border_width)
+/**
+ * @brief Function to style by the label associated to a feature.
+ */
+Control.prototype.layerStyleFunction = function(feature, view_res)
 {
   var self = this;
 
@@ -267,7 +348,7 @@ Control.prototype.layerStyleFunction = function(feature, view_res, border_width)
     return new ol.style.Style({
       stroke: new ol.style.Stroke({
         color: stroke_color,
-        width: border_width
+        width: 3
       }),
       fill: new ol.style.Fill({
         color: fill_color,
@@ -276,11 +357,11 @@ Control.prototype.layerStyleFunction = function(feature, view_res, border_width)
   }
   else
   {
-    console.log("Unknown label: " + label_type + " returning pretty gray :( ");
+    console.log("Unknown label: " + label_type + " returning gray :( ");
     return new ol.style.Style({
       stroke: new ol.style.Stroke({
         color: 'gray',
-        width: border_width
+        width: 3
       }),
       fill: new ol.style.Fill({
         color: 'rgba(128, 128, 128, 0.1)'
@@ -293,17 +374,13 @@ Control.prototype.layerStyleFunction = function(feature, view_res, border_width)
 Control.prototype.loadFeatures = function ()
 {
   var self = this;
-  self.entry_features = [];
-  this.edit_layer.getSource().clear();
-  //  entry_features
+  self.entry_features = [];  // clear currently known layers
   // grab entry info.
   $.getJSON( "entry_features", {entry: self.getEntry()}, function( data ) {
-    console.log("entry_features!");
-    console.log(data)
+    console.log("entry_features:", data);
     if (data != undefined)
     {
       self.entry_features = ((new ol.format.GeoJSON()).readFeatures(data));
-      //  self.edit_layer.getSource().addFeatures(self.entry_features);
     }
     self.updateLayers()
   });
@@ -315,8 +392,6 @@ Control.prototype.saveFeatures = function (event)
   // Post all the features to the server!
   var writer = new ol.format.GeoJSON();
   var geojson_str = writer.writeFeaturesObject(self.entry_features, {rightHanded:true});
-  console.log(geojson_str);
-  console.log(self.current);
   $.ajax({
     type: "POST",
     url: "entry_save_features",

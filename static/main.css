@@ -1,5 +1,7 @@
 
-.info .label {
+.info .button
+{
+    border-radius: 5px;
     border: none;
     color: black;
     padding: 15px 32px;
@@ -11,7 +13,8 @@
     transition-duration: 0.4s;
 }
 
-.info .label.editable {
+.info .label.editable
+{
 	border-color: black;
 	border: solid;
 	border-width: 3px;
@@ -19,5 +22,5 @@
 }
 
 .info .label.hidden {
-	background-color: gray !important;  /* bad practice, but hey... */
+	background-color: gray !important;
 }
