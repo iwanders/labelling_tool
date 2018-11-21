@@ -3,17 +3,25 @@ var Control = function ()
 {
 };
 
-Control.prototype.init = function(static_layer, edit_layer, map, projection)
+Control.prototype.init = function(static_layer, edit_layer, map, projection, undo_interaction)
 {
   var self = this;
   this.static_layer = static_layer;
   this.edit_layer = edit_layer;
   this.map = map;
   this.projection = projection;
+  this.undo_interaction = undo_interaction;
 
   this.current = 1;  // current entry from the backend.
 
   this.selecting_interactions = [];  // interactions that can select features.
+  this.delete_vertex_interactions = [];
+
+  // Hook keydown such that we can do ctrl+z and delete of vertices
+  document.addEventListener('keydown', function (event)
+  {
+    self.deletePressed(event);
+  }, false);
 
   self.entry_info = {config:{classes:[]}};
   self.entry_shown = new Set([]);  // currently shown classes
@@ -58,14 +66,16 @@ Control.prototype.init = function(static_layer, edit_layer, map, projection)
           'label': self.entry_current_label
         })
         self.entry_features.push(e.feature);
-        setTimeout(function(){ self.saveFeatures(e); }, 10);  // needs small delay to get out of drawend processing.
+        self.deferedSave();
       });
     }
 
     // Need to hook modify to save.
     if ((el instanceof ol.interaction.ModifyFeature))
     {
-      console.log("Hooking");
+      //  delete_vertex_interactions.
+      self.delete_vertex_interactions.push(el);
+
       el.on('modifyend', function(e)
       {
         self.saveFeatures(e);
@@ -83,7 +93,7 @@ Control.prototype.init = function(static_layer, edit_layer, map, projection)
             self.entry_features.splice(index, 1);
           }
         });
-        setTimeout(function(){ self.saveFeatures(event); }, 10);  // needs small delay to get out of drawend processing.
+        self.deferedSave();
       });
     }
 
@@ -209,10 +219,16 @@ Control.prototype.setStaticImage = function(img_path)
     // When load is finished, create the new static layer.
     console.log("Image to be loaded is: " + this.width + 'x' + this.height);
     self.projection.setExtent([0, 0, this.width, this.height]);
+    var layer_attributions = undefined;
+    if (self.entry_info["config"]["attributions"])
+    {
+      layer_attributions = self.entry_info["config"]["attributions"];
+    }
     self.static_layer.setSource(new Static({
       url: img_path,
       projection: self.projection,
-      imageExtent: [0, 0, this.width, this.height]
+      imageExtent: [0, 0, this.width, this.height],
+      attributions: layer_attributions
     }));
     self.map.getView().fit([0, 0, this.width, this.height], self.map.getSize()); 
   }
@@ -230,6 +246,10 @@ Control.prototype.updateAvailableLabels = function ()
 
   self.entry_shown = new Set([]);
   self.entry_labels = {};
+  if (self.entry_info["config"]["classes"] == undefined)
+  {
+    return;
+  }
   $.each(self.entry_info["config"]["classes"], function (index, entry) {
     var label = entry.label;
     var button = $('<input type="button" class="label button" value="' + label + '" style="background-color: #' + entry.color + '" />');
@@ -344,7 +364,8 @@ Control.prototype.layerStyleFunction = function(feature, view_res)
     stroke_color[3] = 0.3;
     var fill_color = raw_color.slice();
     fill_color[3] = 0.3;
-    // Return style.
+
+    // Return the newly created style.
     return new ol.style.Style({
       stroke: new ol.style.Stroke({
         color: stroke_color,
@@ -370,22 +391,28 @@ Control.prototype.layerStyleFunction = function(feature, view_res)
   }
 }
 
-
+/**
+ * @brief Load features from the backend.
+ */
 Control.prototype.loadFeatures = function ()
 {
   var self = this;
-  self.entry_features = [];  // clear currently known layers
-  // grab entry info.
+  self.entry_features = [];  // clear currently known features
+
+  // Request new features from the server.
   $.getJSON( "entry_features", {entry: self.getEntry()}, function( data ) {
     console.log("entry_features:", data);
     if (data != undefined)
     {
-      self.entry_features = ((new ol.format.GeoJSON()).readFeatures(data));
+      self.entry_features = (new ol.format.GeoJSON()).readFeatures(data);
     }
-    self.updateLayers()
+    self.updateLayers();
   });
 }
 
+/**
+ * @brief Save features to the backend.
+ */
 Control.prototype.saveFeatures = function (event)
 {
   var self = this;
@@ -402,3 +429,40 @@ Control.prototype.saveFeatures = function (event)
     alert( "Failed to submit data to the server, closing page will lose changes." );
   })
 };
+
+/**
+ * @brief Perform a save a few milliseconds after the call. This allows finishing current work before save.
+ */
+Control.prototype.deferedSave = function ()
+{
+  var self = this;
+  setTimeout(function(){ self.saveFeatures(event); }, 10);
+}
+
+/**
+ * @brief Handler for key presses.
+ */
+Control.prototype.deletePressed = function (event)
+{
+  var self = this;
+
+  if(event.keyCode == 46)
+  {
+    console.log("Delete key, trying to remove a vertex.");
+    for (let interaction of this.delete_vertex_interactions)
+    {
+      interaction.removePoint();
+      self.deferedSave();
+    }
+  }
+  if ((event.keyCode == 90) && (event.ctrlKey))  // ctrl + z
+  {
+    this.undo_interaction.undo();
+    self.deferedSave();
+  }
+  if ((event.keyCode == 89) && (event.ctrlKey))  // ctrl + y
+  {
+    this.undo_interaction.redo();
+    self.deferedSave();
+  }
+}
