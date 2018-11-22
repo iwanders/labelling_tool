@@ -16,13 +16,47 @@
     <!-- jQuery -->
     <script type="text/javascript" src="jquery-1.11.0.min.js"></script>
 
-    
+    <!-- Code with actual logic. -->
     <script type="text/javascript" src="main.js"></script>
     <link rel="stylesheet" href="main.css">
     
   </head>
   <body>
+  <dialog class="modal" id="help_dialog">
+    <p>
+      <a href="https://github.com/iwanders/labelling_tool">Labelling Tool</a>, a tool to annotate images by drawing polygons.
+    </p>
+    <p>
+      <h3>Help</h3>
+      <ul>
+        <li>Available labels per entry are shown on the right.</li>
+        <li>The currently selected label type has a thick border, new polygons will be of this type. Select the active type by left clicking on the labels.</li>
+        <li>Right click on other labels to hide them from the view.</li>
+        <li>Use the select tool from the toolbar to modify a polygon.</li>
+        <li>Delete vertices of a polygon by selecting the polygon and rightclicking vertices.</li>
+        <li>Delete polygons by selecting them with shift-click and pressing delete on the keyboard or the X from the control bar.</li>
+        <li>Change type of a polygon by selecting them and left clicking a label.</li>
+        <li>Undo and redo changes with ctrl+z and ctrl+y or from the control bar, this is an experimental feature from ol-ext.</li>
+        <li>Close new polygons quickly with doubleclick. Use ctrl+z to remove the last placed control point while drawing.</li>
+        <li>Try the dropdown for some options... :)</li>
+      </ul>
+    </p>
+    <p>
+      <h3>Misc</h3>
+      This label tool makes use of the following libraries:
+      <ul>
+        <li><a href="https://openlayers.org/">OpenLayers 5</a></li>
+        <li><a href="https://github.com/Viglino/ol-ext">Open Layers Ext (ol-ext)</a></li>
+        <li><a href="https://cherrypy.org/">CherryPy</a></li>
+      </ul>
+      Sample images provided by <a href="https://xkcd.com/">xkcd</a>.
+
+      This tool is <a href="https://github.com/iwanders/labelling_tool">available</a> under MIT license.
+    </p>
+    <button id="help_dialog_close" class="info button">close</button>
+  </dialog>
     <div class="info">
+      <button id="info_help" class="button">help</button>
       <button id="info_prev" class="button"><i class="fa fa-arrow-left"></i> prev</button>
       <input type="number" id="info_entry_current" name="info_entry_current" min="1" max="100" value="1" style="width:5%;"> / <span id="info_entry_count">--</span>
       <button id="info_next"  class="button">next <i class="fa fa-arrow-right"></i></button>
@@ -53,6 +87,16 @@
     </div>
     <div id="map" class="map"></div>
   </div>
+    <script>
+      var dialog = document.getElementById('help_dialog');
+      // Update button opens a modal dialog
+      $("#info_help").click(function() {
+        dialog.showModal();
+      });
+      $("#help_dialog_close").click(function() {
+        dialog.close("done");
+      });
+    </script>
     <script>
       var Map = ol.Map;
       var View = ol.View;
@@ -143,6 +187,8 @@
 
       var control = new Control();
       control.init(static_layer, edit_layer, map, projection, undoInteraction, colorize_filter);
+
+      // $(".ol-drawpolygon.ol-button button")[0].click(); // Default selected tool is draw polygon.
     </script>
   </body>
 </html>

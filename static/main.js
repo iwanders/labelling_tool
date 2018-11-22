@@ -17,6 +17,8 @@ Control.prototype.init = function(static_layer, edit_layer, map, projection, und
 
   this.selecting_interactions = [];  // interactions that can select features.
   this.delete_vertex_interactions = [];
+  this.drawing_interactions = [];
+  this.draw_active = false;
 
   // Hook keydown such that we can do ctrl+z, delete and ctrl+y
   document.addEventListener('keydown', function (event)
@@ -34,7 +36,7 @@ Control.prototype.init = function(static_layer, edit_layer, map, projection, und
   self.entry_shown = new Set([]);  // currently shown classes
   self.entry_current_label = "unknown";  // the current label we'll add.
   self.entry_labels = {};    // holds all labels that we know for this entry.
-  self.entry_features = [];  // always holds the current features.
+  self.entry_features = new Set([]);  // always holds the current features.
 
   // Retrieve the max entry index from the backend.
   $.getJSON("info_data_extent", function( data ) {
@@ -78,9 +80,17 @@ Control.prototype.init = function(static_layer, edit_layer, map, projection, und
         e.feature.setProperties({
           'label': self.entry_current_label
         })
-        self.entry_features.push(e.feature);
+        self.entry_features.add(e.feature);
         self.deferedSave();
+        self.draw_active = false;
       });
+      if ((el instanceof ol.interaction.Draw))
+      {
+        self.drawing_interactions.push(el);
+        el.on('drawstart', function(e) {
+          self.draw_active = true;
+        });
+      }
     }
 
     // Need to hook modify to save.
@@ -124,9 +134,9 @@ Control.prototype.init = function(static_layer, edit_layer, map, projection, und
       {
         event.features.forEach(function (el, i, arr)
         {
-          var index = self.entry_features.indexOf(el);
-          if (index > -1) {
-            self.entry_features.splice(index, 1);
+          if (self.entry_features.has(el))
+          {
+            self.entry_features.delete(el);
           }
         });
         self.deferedSave();
@@ -157,7 +167,25 @@ Control.prototype.init = function(static_layer, edit_layer, map, projection, und
     }
     if (el instanceof ol.interaction.UndoRedo)
     {
-      // Technically we should hook undo and redo, but that made it much less reliable.
+      el.on("undo", function(e)
+      {
+        // On undo, if it was a remove feature, we need to add it back to the feature list.
+        if (e.action.type == "removefeature")
+        {
+          self.entry_features.add(e.action.feature);
+        }
+      });
+      el.on("redo", function(e)
+      {
+        // On redo we have to remove the feature.
+        if (e.action.type == "removefeature")
+        {
+          if (self.entry_features.has(el))
+          {
+            self.entry_features.delete(e.action.feature);
+          }
+        }
+      });
     }
   });
 };
@@ -361,11 +389,16 @@ Control.prototype.updateAvailableLabels = function ()
       event.preventDefault();
 
       // If we had any selected components, switch their type;
-      for (let feature of self.getSelectedFeatures())
+      var selected_features = self.getSelectedFeatures();
+      if (selected_features.length)
       {
-        feature.setProperties({
-          'label': self.entry_current_label
-        });
+        for (let feature of selected_features)
+        {
+          feature.setProperties({
+            'label': self.entry_current_label
+          });
+        }
+        self.deferedSave();
       }
 
       // Make sure the layer represents this.
@@ -454,13 +487,13 @@ Control.prototype.layerStyleFunction = function(feature, view_res)
 Control.prototype.loadFeatures = function ()
 {
   var self = this;
-  self.entry_features = [];  // clear currently known features
+  self.entry_features = new Set([]);  // clear currently known features
 
   // Request new features from the server.
   $.getJSON( "entry_features", {entry: self.getEntry()}, function( data ) {
     if (data != undefined)
     {
-      self.entry_features = (new ol.format.GeoJSON()).readFeatures(data);
+      self.entry_features = new Set((new ol.format.GeoJSON()).readFeatures(data));
     }
     self.updateLayers();
   });
@@ -474,7 +507,7 @@ Control.prototype.saveFeatures = function (event)
   var self = this;
   // Post all the features to the server!
   var writer = new ol.format.GeoJSON();
-  var geojson_str = writer.writeFeaturesObject(self.entry_features, {rightHanded:true});
+  var geojson_str = writer.writeFeaturesObject(Array.from(self.entry_features), {rightHanded:true});
   $.ajax({
     type: "POST",
     url: "entry_save_features",
@@ -508,6 +541,15 @@ Control.prototype.deletePressed = function (event)
   }
   if ((event.keyCode == 90) && (event.ctrlKey))  // ctrl + z
   {
+    if (self.draw_active)
+    {
+      // If drawing, undo one point.
+      for (let interaction of self.drawing_interactions)
+      {
+        interaction.removeLastPoint();
+      }
+      return;
+    }
     this.undo_interaction.undo();
     self.deferedSave();
   }
@@ -536,6 +578,9 @@ Control.prototype.rightClicked = function(event)
   }
 }
 
+/**
+ * @brief Callback for the change filter dropdown.
+ */
 Control.prototype.changeFilter = function(event)
 {
   var self = this;
