@@ -7,7 +7,7 @@ Labelling Tool
 
 Data Structure
 --------------
-The current backend recursively reads through the data structure. The label specification (and any other config) is read from yaml files, information from yaml files in a folder propagates down to its subfolders. Whenever an image is encountered the configuration as constructed up to that point is associated to it.
+The current backend recursively reads through the data structure. The label specification (and any other config) is read from yaml files, information from yaml files in a folder propagates down to its subfolders. Whenever an image is encountered the configuration as constructed up to that point is associated to it. The entries are ordered by path.
 
 The yaml format has the following entries:
 ```yaml
@@ -36,6 +36,7 @@ Help
  - Delete polygons by selecting them with shift-click and pressing delete on the keyboard or the X from the control bar.
  - Change type of a polygon by selecting them and left clicking a label.
  - Undo and redo changes with ctrl+z and ctrl+y or from the control bar, this is an experimental feature from ol-ext.
+ - While drawing a polygon use ctrl+z or ctrl+rightclick to remove the previously inserted point.
  - Close new polygons quickly with doubleclick. Use ctrl+z to remove the last placed control point while drawing.
  - Try the dropdown for some options... :)
 

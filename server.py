@@ -52,7 +52,7 @@ class Image:
         self.data_path = path[0:path.rindex(".")] + ".json"
 
     def __repr__(self):
-        return "<{} - ({})>".format(self.path[-50:], ", ".join([x["label"] for x in self.config["classes"]]))
+        return "<{} - ({})>".format(self.path, ", ".join([x["label"] for x in self.config["classes"]]))
 
     def get_info(self):
         """Return a dictionary representing the information about this image."""
@@ -86,6 +86,9 @@ class Image:
         except json.decoder.JSONDecodeError as e:
             print("Huge problem, failed to decode json: {}".format(str(e)))
         return None
+
+    def __lt__(self, a):
+        return self.path < a.path
 
 class Data:
     def __init__(self, path):
@@ -134,6 +137,10 @@ class Data:
     def update_data(self):
         """Updates the data object by traversing through the path again in search of yaml and data files."""
         self.entries = self.data_loader(self.path, {})
+        self.entries.sort()
+        print("Entries:")
+        for index, img in enumerate(self.entries):
+            print("{: >5d} {}".format(index, img))
 
     def entry_info(self, index):
         """Returns the info from a specific entry."""

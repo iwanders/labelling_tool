@@ -599,6 +599,15 @@ Control.prototype.deletePressed = function (event)
 Control.prototype.rightClicked = function(event)
 {
   var self = this;
+  if (self.draw_active && (event.button == 2) && (event.ctrlKey))
+  {
+    for (let interaction of self.drawing_interactions)
+    {
+      interaction.removeLastPoint();
+    }
+    return;
+  }
+
   var have_selected = self.getSelectedFeatures().length;
   if (have_selected == 0)
   {
