@@ -17,11 +17,17 @@ Control.prototype.init = function(static_layer, edit_layer, map, projection, und
   this.selecting_interactions = [];  // interactions that can select features.
   this.delete_vertex_interactions = [];
 
-  // Hook keydown such that we can do ctrl+z and delete of vertices
+  // Hook keydown such that we can do ctrl+z, delete and ctrl+y
   document.addEventListener('keydown', function (event)
   {
     self.deletePressed(event);
   }, false);
+
+  // Hook rightclick for removal of vertices.
+  this.map.getViewport().addEventListener('contextmenu', function (e) {
+    self.rightClicked(e);
+    e.preventDefault();
+  });
 
   self.entry_info = {config:{classes:[]}};
   self.entry_shown = new Set([]);  // currently shown classes
@@ -30,7 +36,7 @@ Control.prototype.init = function(static_layer, edit_layer, map, projection, und
   self.entry_features = [];  // always holds the current features.
 
   // Retrieve the max entry index from the backend.
-  $.getJSON( "info_data_extent", function( data ) {
+  $.getJSON("info_data_extent", function( data ) {
     self.info_data_extent = data;
     self.updateInfoBox();
     self.setEntry(1);
@@ -78,8 +84,31 @@ Control.prototype.init = function(static_layer, edit_layer, map, projection, und
 
       el.on('modifyend', function(e)
       {
-        self.saveFeatures(e);
+        self.deferedSave();
       });
+
+      // Hook the condition for deleting vertices.
+      // https://stackoverflow.com/a/50755862
+      el._condition = function(e)
+      {
+        // Check if there is a feature to select
+        var f = this.getMap().getFeaturesAtPixel(e.pixel,
+          {
+            hitTolerance:5
+          });
+        if (f)
+        {
+          var p0 = e.pixel;
+          var p1 = f[0].getGeometry().getClosestPoint(e.coordinate);
+          p1 = this.getMap().getPixelFromCoordinate(p1);
+          var dx = p0[0]-p1[0];
+          var dy = p0[1]-p1[1];
+          if (Math.sqrt(dx*dx+dy*dy) > 8) {
+            f = null;
+          }
+        }
+        return true;
+      };
     }
     // Need to hook delete because we need to discard this from the feature list.
     if (el instanceof ol.interaction.Delete)
@@ -203,10 +232,11 @@ Control.prototype.setEntry = function (entry)
 
     // Update the label handler.
     self.updateAvailableLabels();
+
+    // Load the features from the server.
+    self.loadFeatures();
   });
 
-  // Load the features from the server.
-  self.loadFeatures();
 }
 
 Control.prototype.setStaticImage = function(img_path)
@@ -446,14 +476,9 @@ Control.prototype.deletePressed = function (event)
 {
   var self = this;
 
-  if(event.keyCode == 46)
+  if(event.keyCode == 46)  // Delete key, simulate 'click' on delete.
   {
-    console.log("Delete key, trying to remove a vertex.");
-    for (let interaction of this.delete_vertex_interactions)
-    {
-      interaction.removePoint();
-      self.deferedSave();
-    }
+    $(".ol-delete.ol-button button")[0].click();
   }
   if ((event.keyCode == 90) && (event.ctrlKey))  // ctrl + z
   {
@@ -463,6 +488,24 @@ Control.prototype.deletePressed = function (event)
   if ((event.keyCode == 89) && (event.ctrlKey))  // ctrl + y
   {
     this.undo_interaction.redo();
+    self.deferedSave();
+  }
+}
+
+/**
+ * @brief Handler for right clicks on the map.
+ */
+Control.prototype.rightClicked = function(event)
+{
+  var self = this;
+  var have_selected = self.getSelectedFeatures().length;
+  if (have_selected == 0)
+  {
+    return; // don't allow deletion if not selected, made for a confusing interaction.
+  }
+  for (let interaction of this.delete_vertex_interactions)
+  {
+    interaction.removePoint();
     self.deferedSave();
   }
 }
