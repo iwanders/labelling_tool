@@ -1,7 +1,0 @@
-classes:
-  - label: text
-    description: Draw polygons around text.
-    color: 55FFFF
-  - label: geometry
-    description: Make polygons around geometry.
-    color: FFFF55

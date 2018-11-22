@@ -1,8 +1,30 @@
+/*
+  The MIT License (MIT)
+  Copyright (c) 2018 Ivor Wanders
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
+*/
 
 var Control = function ()
 {
 };
 
+/**
+ * @brief init function that registers all callbacks and initialises state variables.
+ */
 Control.prototype.init = function(static_layer, edit_layer, map, projection, undo_interaction, colorize_filter)
 {
   var self = this;
@@ -169,10 +191,15 @@ Control.prototype.init = function(static_layer, edit_layer, map, projection, und
     {
       el.on("undo", function(e)
       {
+        console.log(e);
         // On undo, if it was a remove feature, we need to add it back to the feature list.
         if (e.action.type == "removefeature")
         {
           self.entry_features.add(e.action.feature);
+        }
+        if (e.action.type == "addfeature")
+        {
+          self.entry_features.delete(e.action.feature);
         }
       });
       el.on("redo", function(e)
@@ -180,10 +207,11 @@ Control.prototype.init = function(static_layer, edit_layer, map, projection, und
         // On redo we have to remove the feature.
         if (e.action.type == "removefeature")
         {
-          if (self.entry_features.has(el))
-          {
-            self.entry_features.delete(e.action.feature);
-          }
+          self.entry_features.delete(e.action.feature);
+        }
+        if (e.action.type == "addfeature")
+        {
+          self.entry_features.add(e.action.feature);
         }
       });
     }
@@ -337,7 +365,12 @@ Control.prototype.updateAvailableLabels = function ()
   }
   $.each(self.entry_info["config"]["classes"], function (index, entry) {
     var label = entry.label;
-    var button = $('<input type="button" class="label button" value="' + label + '" style="background-color: #' + entry.color + '" />');
+    var title = entry.description;
+    if (title == undefined)
+    {
+      title = "";
+    }
+    var button = $('<input type="button" class="label button" title="' + title + '" value="' + label+ '" style="background-color: #' + entry.color + '"/>');
 
     self.entry_labels[label] = entry;  // add thsi entry to the current entry labels.
     self.entry_shown.add(label);  // show by default.

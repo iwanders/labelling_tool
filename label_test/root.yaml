@@ -1,3 +1,4 @@
+# This yaml file applies to both campaigns.
 attributions: '© <a href="http://xkcd.com/license.html">xkcd</a>'
 classes:
   - label: anything

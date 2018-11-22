@@ -1,3 +1,4 @@
+# This yaml file only applies to campaign B.
 classes:
   - label: math
     description: Draw polygons around math.
