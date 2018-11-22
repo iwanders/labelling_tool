@@ -26,6 +26,26 @@
       <button id="info_prev" class="button"><i class="fa fa-arrow-left"></i> prev</button>
       <input type="number" id="info_entry_current" name="info_entry_current" min="1" max="100" value="1" style="width:5%;"> / <span id="info_entry_count">--</span>
       <button id="info_next"  class="button">next <i class="fa fa-arrow-right"></i></button>
+      <select id="filter">
+          <optgroup label="Disable">
+            <option value="disabled">Disabled</option>
+          <optgroup label="Operation">
+            <option value="color">color</option>
+            <option value="difference">difference</option>
+            <option value="color-dodge">color-dodge</option>
+            <option value="hue">hue</option>
+            <option value="saturation">saturation</option>
+            <option value="luminosity">luminosity</option>
+            <option value="enhance">enhance</option>
+            <option value="contrast">contrast</option>
+          </optgroup>
+          <optgroup label="Predefined">
+            <option value="grayscale">grayscale</option>
+            <option value="invert">invert</option>
+            <option value="sepia">sepia</option>
+          </optgroup>
+      </select>
+
       <span id="labels" style="float: right">
         <button class="label" >foo</span>
         <button class="label" >bar</span>
@@ -73,6 +93,10 @@
         })
       });
 
+      var colorize_filter = new ol.filter.Colorize({ operation:'contrast'});
+      static_layer.addFilter(colorize_filter);
+      colorize_filter.setActive(false);
+
       // Add the editbar
       var edit = new ol.control.EditBar({
         source: edit_layer.getSource(),
@@ -118,7 +142,7 @@
       edit.addControl(bar);
 
       var control = new Control();
-      control.init(static_layer, edit_layer, map, projection, undoInteraction);
+      control.init(static_layer, edit_layer, map, projection, undoInteraction, colorize_filter);
     </script>
   </body>
 </html>

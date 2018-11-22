@@ -3,7 +3,7 @@ var Control = function ()
 {
 };
 
-Control.prototype.init = function(static_layer, edit_layer, map, projection, undo_interaction)
+Control.prototype.init = function(static_layer, edit_layer, map, projection, undo_interaction, colorize_filter)
 {
   var self = this;
   this.static_layer = static_layer;
@@ -11,6 +11,7 @@ Control.prototype.init = function(static_layer, edit_layer, map, projection, und
   this.map = map;
   this.projection = projection;
   this.undo_interaction = undo_interaction;
+  this.colorize_filter = colorize_filter;
 
   this.current = 1;  // current entry from the backend.
 
@@ -55,6 +56,11 @@ Control.prototype.init = function(static_layer, edit_layer, map, projection, und
     event.preventDefault();
   });
 
+  $("#filter").change(function(event)
+  {
+    self.changeFilter(event);
+  });
+
   // Set the map style function.
   this.edit_layer.setStyle(function(feature, view_res)
   {
@@ -64,6 +70,7 @@ Control.prototype.init = function(static_layer, edit_layer, map, projection, und
   // Patch ourselves into the interactions.
   self.map.getInteractions().forEach(function (el, i, arr)
   {
+    console.log(el);
     if ((el instanceof ol.interaction.Draw) || el instanceof ol.interaction.DrawRegular)
     {
       // Need to hook draw end to set the label.
@@ -131,6 +138,27 @@ Control.prototype.init = function(static_layer, edit_layer, map, projection, und
     {
       self.selecting_interactions.push(el);
     }
+
+    // Need to hook transform to ensure we save.
+    if (el instanceof ol.interaction.Transform)
+    {
+      el.on('rotateend', function(e)
+      {
+        self.deferedSave();
+      });
+      el.on('translateend', function(e)
+      {
+        self.deferedSave();
+      });
+      el.on('scaleend', function(e)
+      {
+        self.deferedSave();
+      });
+    }
+    if (el instanceof ol.interaction.UndoRedo)
+    {
+      // Technically we should hook undo and redo, but that made it much less reliable.
+    }
   });
 };
 
@@ -160,7 +188,6 @@ Control.prototype.deselect = function (deselect_labeltype)
     var features = interaction.getFeatures();
     features.forEach( function (feature, i, arr)
     {
-      console.log(arr);
       var label_type = feature.getProperties()["label"];
       if ((label_type == deselect_labeltype) || (deselect_labeltype == undefined))
       {
@@ -431,7 +458,6 @@ Control.prototype.loadFeatures = function ()
 
   // Request new features from the server.
   $.getJSON( "entry_features", {entry: self.getEntry()}, function( data ) {
-    console.log("entry_features:", data);
     if (data != undefined)
     {
       self.entry_features = (new ol.format.GeoJSON()).readFeatures(data);
@@ -508,4 +534,36 @@ Control.prototype.rightClicked = function(event)
     interaction.removePoint();
     self.deferedSave();
   }
+}
+
+Control.prototype.changeFilter = function(event)
+{
+  var self = this;
+  self.colorize_filter.setActive(false);
+
+  var f = $("#filter").val();
+  switch (f)
+  {
+    case 'disabled':
+      self.colorize_filter.setActive(false);
+      break;
+    case 'grayscale':
+    case 'invert':
+    case 'sepia':
+      self.colorize_filter.setActive(true);
+      self.colorize_filter.setFilter(f);
+      break;
+  default:
+    self.colorize_filter.setActive(true);
+    self.colorize_filter.setFilter({
+      operation:f,
+      red: 255,
+      green: 255,
+      blue: 255, 
+      value: 1.0,
+    });
+  break;
+
+  }
+
 }
