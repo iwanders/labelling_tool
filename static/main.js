@@ -94,7 +94,6 @@ Control.prototype.init = function(static_layer, edit_layer, map, projection, und
   // Patch ourselves into the interactions.
   self.map.getInteractions().forEach(function (el, i, arr)
   {
-    console.log(el);
     if ((el instanceof ol.interaction.Draw) || el instanceof ol.interaction.DrawRegular)
     {
       // Need to hook draw end to set the label.
@@ -106,11 +105,20 @@ Control.prototype.init = function(static_layer, edit_layer, map, projection, und
         self.deferedSave();
         self.draw_active = false;
       });
+
       if ((el instanceof ol.interaction.Draw))
       {
         self.drawing_interactions.push(el);
         el.on('drawstart', function(e) {
           self.draw_active = true;
+        });
+
+        // Patch style function into the drawing overlay.
+        el.overlay_.setStyle(function (feature, zoom )
+        {
+          var to_be_style = self.labelStyle(self.entry_current_label);
+          to_be_style.getFill().getColor()[3] = 0.05;
+          return to_be_style;
         });
       }
     }
@@ -469,14 +477,11 @@ Control.prototype.updateLayers = function()
 }
 
 /**
- * @brief Function to style by the label associated to a feature.
+ * @brief Function that retrieves the style of a label.
  */
-Control.prototype.layerStyleFunction = function(feature, view_res)
+Control.prototype.labelStyle = function(label_type)
 {
   var self = this;
-
-  // Try to retrieve the color.
-  var label_type = feature.getProperties()["label"];
   if (label_type in self.entry_labels)
   {
     var entry = self.entry_labels[label_type];
@@ -512,6 +517,18 @@ Control.prototype.layerStyleFunction = function(feature, view_res)
       })
     });
   }
+}
+
+/**
+ * @brief Function to style by the label associated to a feature.
+ */
+Control.prototype.layerStyleFunction = function(feature, view_res)
+{
+  var self = this;
+
+  // Try to retrieve the color.
+  var label_type = feature.getProperties()["label"];
+  return self.labelStyle(label_type);
 }
 
 /**
