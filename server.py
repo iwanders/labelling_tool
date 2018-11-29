@@ -107,7 +107,7 @@ class Data:
         yamlfiles = glob.glob(os.path.join(path, "*.yaml"))
         for yaml_fname in yamlfiles:
             print("Yamlfile: {}".format(yaml_fname))
-            yaml_path = os.path.join(path, yaml_fname)
+            yaml_path = os.path.join(yaml_fname)
             with open(yaml_path, 'r') as f:
                 try:
                     # we combine the current context with the yaml we load.
@@ -119,14 +119,14 @@ class Data:
         for content_fname in glob.glob(os.path.join(path, "*.*")):
             if (content_fname.endswith("yaml") or content_fname.endswith("json")):
                 continue
-            content_path = os.path.join(path, content_fname)
+            content_path = os.path.join(content_fname)
             # print("Content file: {}, properties: {}".format(cf, str(context)))
             entries.append(Image(content_path, context))
 
         # finally, we iterate down, copying the context.
         for root, dirs, files in os.walk(path):
             for d in dirs:
-                entries.extend(Data.data_loader(os.path.join(path, d), copy.deepcopy(context)))
+                entries.extend(Data.data_loader(os.path.join(root, d), copy.deepcopy(context)))
         return entries
 
     
