@@ -25,7 +25,7 @@ var Control = function ()
 /**
  * @brief init function that registers all callbacks and initialises state variables.
  */
-Control.prototype.init = function(static_layer, edit_layer, map, projection, undo_interaction, colorize_filter)
+Control.prototype.init = function(static_layer, edit_layer, map, projection, undo_interaction)
 {
   var self = this;
   this.static_layer = static_layer;
@@ -33,8 +33,6 @@ Control.prototype.init = function(static_layer, edit_layer, map, projection, und
   this.map = map;
   this.projection = projection;
   this.undo_interaction = undo_interaction;
-  this.colorize_filter = colorize_filter;
-
   this.current = 1;  // current entry from the backend.
 
   this.selecting_interactions = [];  // interactions that can select features.
@@ -306,6 +304,7 @@ Control.prototype.getEntry = function()
 Control.prototype.setEntry = function (entry)
 {
   var self = this;
+  $("#filter").val("disabled");
   var correct_entry = Math.max(1, Math.min(entry, this.info_data_extent.entries));  // enforce sanity.
   this.current = correct_entry;
   self.deselect();
@@ -317,9 +316,10 @@ Control.prototype.setEntry = function (entry)
   $.getJSON( "entry_info", {entry:self.getEntry()}, function( data ) {
     console.log("entry_info:", data)
     self.entry_info = data;
+    self.entry_image_url = "entry_data?entry=" + (self.getEntry());
 
     // update the image.
-    self.setStaticImage("entry_data?entry=" + (self.getEntry()));
+    self.setStaticImage(self.entry_image_url);
 
     // Update the label handler.
     self.updateAvailableLabels();
@@ -330,6 +330,27 @@ Control.prototype.setEntry = function (entry)
 
 }
 
+Control.prototype.setStaticSource = function (url, width, height)
+{
+  var self = this;
+  self.projection.setExtent([0, 0, width, height]);
+  var layer_attributions = undefined;
+  if (self.entry_info["config"]["attributions"])
+  {
+    layer_attributions = self.entry_info["config"]["attributions"];
+  }
+  self.static_layer.setSource(new Static({
+    url: url,
+    projection: self.projection,
+    imageExtent: [0, 0, width, height],
+    attributions: layer_attributions
+  }));
+  $("#filter_msg").text("");
+}
+
+/**
+ * @brief Retrieve a static image and set the layer.
+ */
 Control.prototype.setStaticImage = function(img_path)
 {
   var self = this;
@@ -339,18 +360,7 @@ Control.prototype.setStaticImage = function(img_path)
   img.onload = function() {
     // When load is finished, create the new static layer.
     console.log("Image to be loaded is: " + this.width + 'x' + this.height);
-    self.projection.setExtent([0, 0, this.width, this.height]);
-    var layer_attributions = undefined;
-    if (self.entry_info["config"]["attributions"])
-    {
-      layer_attributions = self.entry_info["config"]["attributions"];
-    }
-    self.static_layer.setSource(new Static({
-      url: img_path,
-      projection: self.projection,
-      imageExtent: [0, 0, this.width, this.height],
-      attributions: layer_attributions
-    }));
+    self.setStaticSource(img_path, this.width, this.height);
     self.map.getView().fit([0, 0, this.width, this.height], self.map.getSize()); 
   }
   img.src = img_path;   // load the image, then when that's done update the map now that we know the resolution.
@@ -643,31 +653,49 @@ Control.prototype.rightClicked = function(event)
 Control.prototype.changeFilter = function(event)
 {
   var self = this;
-  self.colorize_filter.setActive(false);
 
   var f = $("#filter").val();
   switch (f)
   {
-    case 'disabled':
-      self.colorize_filter.setActive(false);
+    case 'colorburn':
+      self.applyFilter("color-burn", 0.9)
       break;
-    case 'grayscale':
-    case 'invert':
-    case 'sepia':
-      self.colorize_filter.setActive(true);
-      self.colorize_filter.setFilter(f);
+    case 'screen':
+      self.applyFilter("screen", 0.9)
       break;
   default:
-    self.colorize_filter.setActive(true);
-    self.colorize_filter.setFilter({
-      operation:f,
-      red: 255,
-      green: 255,
-      blue: 255, 
-      value: 1.0,
-    });
-  break;
-
+    console.log("nothing");
+    {
+      var ext = static_layer.getSource().getImageExtent()
+      self.setStaticSource(self.entry_image_url, ext[2], ext[3]);
+    }
+    break;
   }
+}
 
+Control.prototype.applyFilter = function(style, strength)
+{
+  var self = this;
+  $("#filter_msg").text("Applying " + style + " at " + strength + "..."); // this can take a while, show this.
+  var img = new Image();
+  img.src = self.entry_image_url;
+  img.onload = function() {
+    var w = this.width;
+    var h = this.height
+
+    // Create a canvas to work with
+    var canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    var ctx = canvas.getContext("2d");
+    ctx.drawImage(this, 0, 0);  // Copy the image onto the canvas
+
+    // Set composite style.
+    ctx.globalCompositeOperation = style;
+    ctx.globalAlpha = strength;
+    ctx.drawImage(canvas, 0, 0, w, h);  // draw the image onto itself with the operation.
+
+    // Update the openlayers image to use the created filtered image.
+    self.setStaticSource(canvas.toDataURL(), this.width, this.height);
+  }
 }

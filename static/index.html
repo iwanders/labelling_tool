@@ -84,21 +84,11 @@
           <optgroup label="Disable">
             <option value="disabled">Disabled</option>
           <optgroup label="Operation">
-            <option value="color">color</option>
-            <option value="difference">difference</option>
-            <option value="color-dodge">color-dodge</option>
-            <option value="hue">hue</option>
-            <option value="saturation">saturation</option>
-            <option value="luminosity">luminosity</option>
-            <option value="enhance">enhance</option>
-            <option value="contrast">contrast</option>
-          </optgroup>
-          <optgroup label="Predefined">
-            <option value="grayscale">grayscale</option>
-            <option value="invert">invert</option>
-            <option value="sepia">sepia</option>
+            <option value="colorburn">colorburn</option>
+            <option value="screen">screen</option>
           </optgroup>
       </select>
+      <span id="filter_msg"></span>
 
       <span id="labels" style="float: right">
         <button class="label" >foo</span>
@@ -154,12 +144,15 @@
           zoom: 1,
           maxZoom: 7,
           minZoom: -2
-        })
+        }),
+        interactions: ol.interaction.defaults({
+          dragPan: false, 
+          mouseWheelZoom: false
+        }).extend([
+          new ol.interaction.DragPan({kinetic: false}),  // disable inertia like scrolling.
+          new ol.interaction.MouseWheelZoom({duration: 10, timeout:10})
+        ]),
       });
-
-      var colorize_filter = new ol.filter.Colorize({ operation:'contrast'});
-      static_layer.addFilter(colorize_filter);
-      colorize_filter.setActive(false);
 
       // Add the editbar
       var edit = new ol.control.EditBar({
@@ -206,7 +199,7 @@
       edit.addControl(bar);
 
       var control = new Control();
-      control.init(static_layer, edit_layer, map, projection, undoInteraction, colorize_filter);
+      control.init(static_layer, edit_layer, map, projection, undoInteraction);
 
       // $(".ol-drawpolygon.ol-button button")[0].click(); // Default selected tool is draw polygon.
     </script>
