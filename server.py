@@ -117,15 +117,14 @@ class Data:
                     print("Failed parsing {}: {}".format(yaml_path, selfexc))
 
         # then we parse the data files in this directory.
-        for content_fname in glob.glob(os.path.join(path, "*.*")):
+        for content_fname in sorted(glob.glob(os.path.join(path, "*.*"))):
             if (content_fname.endswith("yaml") or content_fname.endswith("json")):
                 continue
             # csv files contain a list of paths to image files to be loaded
             elif content_fname.endswith("csv"):
                 with open(os.path.join(content_fname), 'r') as list_file:
-                    for f in list_file:
-                        f = f.replace("\n", "")
-                        entries.append(Image(f, context))
+                    for filename in list_file:
+                        entries.append(Image(filename.strip(), context))
             else:
                 content_path = os.path.join(content_fname)
                 # print("Content file: {}, properties: {}".format(cf, str(context)))
