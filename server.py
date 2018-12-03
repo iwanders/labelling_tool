@@ -61,7 +61,8 @@ class Image:
     def get_mime(self):
         mimes = {
             "png": "image/png",
-            "jpg": "image/jpg"
+            "jpg": "image/jpg",
+            "jpeg": "image/jpeg"
         }
         return mimes[self.path[self.path.rindex('.')+1:].lower()]
 
@@ -119,9 +120,16 @@ class Data:
         for content_fname in glob.glob(os.path.join(path, "*.*")):
             if (content_fname.endswith("yaml") or content_fname.endswith("json")):
                 continue
-            content_path = os.path.join(content_fname)
-            # print("Content file: {}, properties: {}".format(cf, str(context)))
-            entries.append(Image(content_path, context))
+            # csv files contain a list of paths to image files to be loaded
+            elif content_fname.endswith("csv"):
+                with open(os.path.join(content_fname), 'r') as list_file:
+                    for f in list_file:
+                        f = f.replace("\n", "")
+                        entries.append(Image(f, context))
+            else:
+                content_path = os.path.join(content_fname)
+                # print("Content file: {}, properties: {}".format(cf, str(context)))
+                entries.append(Image(content_path, context))
 
         # finally, we iterate down, copying the context.
         for root, dirs, files in os.walk(path):
@@ -129,7 +137,7 @@ class Data:
                 entries.extend(Data.data_loader(os.path.join(root, d), copy.deepcopy(context)))
         return entries
 
-    
+
     def data_extent(self):
         """Returns information about the extent of the data."""
         return {"entries":len(self.entries)}
@@ -137,7 +145,6 @@ class Data:
     def update_data(self):
         """Updates the data object by traversing through the path again in search of yaml and data files."""
         self.entries = self.data_loader(self.path, {})
-        self.entries.sort()
         print("Entries:")
         for index, img in enumerate(self.entries):
             print("{: >5d} {}".format(index, img))
