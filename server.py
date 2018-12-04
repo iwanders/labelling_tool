@@ -132,7 +132,7 @@ class Data:
 
         # finally, we iterate down, copying the context.
         for root, dirs, files in os.walk(path):
-            for d in dirs:
+            for d in sorted(dirs):
                 entries.extend(Data.data_loader(os.path.join(root, d), copy.deepcopy(context)))
         return entries
 
