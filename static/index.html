@@ -154,7 +154,11 @@
           dragPan: false, 
           mouseWheelZoom: false
         }).extend([
-          new ol.interaction.DragPan({kinetic: false}),  // disable inertia like scrolling.
+            // disable inertia like scrolling, allow middle mouse drag
+          new ol.interaction.DragPan({
+            kinetic: false,
+            condition: e => (e.originalEvent.which == 2 || e.originalEvent.button == 4 )
+          }),
           new ol.interaction.MouseWheelZoom({duration: 10, timeout:10})
         ]),
       });
