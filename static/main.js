@@ -370,7 +370,8 @@ Control.prototype.setStaticSource = function (url, width, height)
     url: url,
     projection: self.projection,
     imageExtent: [0, 0, width, height],
-    attributions: layer_attributions
+    attributions: layer_attributions,
+    interpolate:false,
   }));
   $("#filter_msg").text("");
 }
