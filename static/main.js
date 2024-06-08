@@ -65,6 +65,17 @@ Control.prototype.init = function(static_layer, edit_layer, map, projection, und
     self.setEntry(1);
   });
 
+
+  // Retrieve the max entry index from the backend.
+  // craft the backend url, 
+  let proto = $(location).attr("protocol");
+  let host = $(location).attr('hostname');
+  let backend_port = 8081;
+  console.log(proto, host, backend_port);
+  $.getJSON(proto + "//" + host + ":" + backend_port + "/backend/foo", function( data ) {
+    console.log("Hit backend! data: ", data);
+  });
+
   // Bind forwards / backwards buttons.
   $("#info_next").click(function (event)
   {
@@ -102,7 +113,7 @@ Control.prototype.init = function(static_layer, edit_layer, map, projection, und
         self.entry_features.add(e.feature);
         self.deferedSave();
         self.draw_active = false;
-        console.log("Draw end", e);
+        //console.log("Draw end", e);
       });
 
       if ((el instanceof ol.interaction.Draw))
@@ -198,7 +209,7 @@ Control.prototype.init = function(static_layer, edit_layer, map, projection, und
     {
       el.on("undo", function(e)
       {
-        console.log(e);
+        //console.log(e);
         // On undo, if it was a remove feature, we need to add it back to the feature list.
         if (e.action.type == "removefeature")
         {
@@ -479,7 +490,7 @@ Control.prototype.updateLayers = function()
   // Add the entries to the layer that we are interested in.
   for (let feature of self.entry_features)
   {
-    console.log("Feature", feature);
+    //  console.log("Feature", feature);
     var label_type = feature.getProperties()["label"];
     if (self.entry_shown.has(label_type))
     {
