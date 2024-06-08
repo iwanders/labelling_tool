@@ -126,7 +126,8 @@ impl Backend {
                 let _ = rq.as_reader().read_to_end(&mut data)?;
                 println!("data: {:?}, len: {:?}", &data[0..10], data.len());
 
-                let segment_res = self.sam.segment(&data)?;
+                let threshold = 0.0;
+                let segment_res = self.sam.segment(&data, threshold, &[])?;
 
                 Some(
                     tiny_http::Response::from_string(serde_json::to_string_pretty(&f).unwrap())
