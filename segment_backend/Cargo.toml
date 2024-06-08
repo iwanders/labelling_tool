@@ -24,3 +24,4 @@ candle-nn = "0.5.1"
 candle-transformers = "0.5.1"
 hf-hub  = "0.3.2"
 anyhow = "1.0.86"
+image = { version = "0.25.0", default-features = false, features = ["jpeg", "png"] }

@@ -67,13 +67,13 @@ impl<T:std::io::Read> AllowCors for tiny_http::Response<T> {
 }
 
 struct Backend {
-    segment_anything: SegmentAnything,
+    sam: SegmentAnything,
 }
 
 impl Backend {
     pub fn new() -> Result<Self, BackendError> {
-        let segment_anything = SegmentAnything::new()?;
-        Ok(Backend {segment_anything})
+        let sam = SegmentAnything::new()?;
+        Ok(Backend {sam})
     }
 
     pub fn request_file(&self, rq: &Request) -> Result<Option<ResponseBox>, BackendError> {
@@ -125,6 +125,9 @@ impl Backend {
                 let mut data = vec![];
                 let _ = rq.as_reader().read_to_end(&mut data)?;
                 println!("data: {:?}, len: {:?}", &data[0..10], data.len());
+
+                let segment_res = self.sam.segment(&data)?;
+
                 Some(
                     tiny_http::Response::from_string(serde_json::to_string_pretty(&f).unwrap())
                         .with_status_code(tiny_http::StatusCode(200))
