@@ -112,7 +112,7 @@ class Data:
             with open(yaml_path, 'r') as f:
                 try:
                     # we combine the current context with the yaml we load.
-                    extend_dict(context, yaml.load(f))
+                    extend_dict(context, yaml.safe_load(f))
                 except yaml.YAMLError as exc:
                     print("Failed parsing {}: {}".format(yaml_path, selfexc))
 
