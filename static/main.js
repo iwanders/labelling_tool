@@ -102,6 +102,7 @@ Control.prototype.init = function(static_layer, edit_layer, map, projection, und
         self.entry_features.add(e.feature);
         self.deferedSave();
         self.draw_active = false;
+        console.log("Draw end", e);
       });
 
       if ((el instanceof ol.interaction.Draw))
@@ -478,6 +479,7 @@ Control.prototype.updateLayers = function()
   // Add the entries to the layer that we are interested in.
   for (let feature of self.entry_features)
   {
+    console.log("Feature", feature);
     var label_type = feature.getProperties()["label"];
     if (self.entry_shown.has(label_type))
     {
@@ -502,6 +504,8 @@ Control.prototype.labelStyle = function(label_type)
     stroke_color[3] = 0.3;
     var fill_color = raw_color.slice();
     fill_color[3] = 0.3;
+    var point_color = raw_color.slice();
+    point_color[3] = 0.5;
 
     // Return the newly created style.
     return new ol.style.Style({
@@ -511,6 +515,13 @@ Control.prototype.labelStyle = function(label_type)
       }),
       fill: new ol.style.Fill({
         color: fill_color,
+      }),
+      // image is points.
+      image: new ol.style.Circle({
+          radius: 3,
+          fill: new ol.style.Fill({
+            color: point_color,
+          })
       })
     });
   }

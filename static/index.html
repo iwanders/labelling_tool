@@ -158,7 +158,7 @@
       var edit = new ol.control.EditBar({
         source: edit_layer.getSource(),
         interactions:{
-          DrawPoint:false,
+          DrawPoint:true,
           DrawLine:false,
           Offset:false,
           Split:false
@@ -177,7 +177,7 @@
       });
 
       // Add buttons to the bar
-      var bar = new ol.control.Bar({ 
+      var bar = new ol.control.Bar({
         group: true,
         controls: [
           new ol.control.Button({
