@@ -115,7 +115,7 @@ impl SegmentAnything {
         let mut img = Reader::new(Cursor::new(image_bytes))
             .with_guessed_format()
             .expect("Cursor io never fails").decode()?;
-        let (image, initial_h, initial_w) = load_image(img, Some(sam::IMAGE_SIZE))?;
+        let (image, initial_h, initial_w) = load_image(img.clone(), Some(sam::IMAGE_SIZE))?;
         let image = image.to_device(&self.device)?;
 
         let iter_points = [("0.0,0.0", true)];
@@ -143,6 +143,21 @@ impl SegmentAnything {
         let mask = (mask.ge(threshold)? * 255.)?;
         let (_one, h, w) = mask.dims3()?;
         let mask = mask.expand((3, h, w))?;
+
+
+
+        let mask_pixels = mask.permute((1, 2, 0))?.flatten_all()?.to_vec1::<u8>()?;
+        let mask_img: image::ImageBuffer<image::Rgb<u8>, Vec<u8>> =
+            match image::ImageBuffer::from_raw(w as u32, h as u32, mask_pixels) {
+                Some(image) => image,
+                None => anyhow::bail!("error saving merged image"),
+            };
+        let mask_img = image::DynamicImage::from(mask_img).resize_to_fill(
+            img.width(),
+            img.height(),
+            image::imageops::FilterType::CatmullRom,
+        );
+        mask_img.save("/tmp/sam_merged.jpg")?;
 
 
         Ok(())
