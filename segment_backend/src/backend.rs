@@ -8,6 +8,8 @@ use ascii::AsciiString;
 use std::fs;
 use std::path::Path;
 
+use crate::segment::SegmentAnything;
+
 fn get_content_type(path: &Path) -> &'static str {
     let extension = match path.extension() {
         None => return "text/plain",
@@ -39,7 +41,6 @@ fn file_to_response(path: &std::path::Path, file: std::fs::File) -> Response<std
     })
 }
 
-use std::path::PathBuf;
 use tiny_http::Request;
 use tiny_http::Response;
 use tiny_http::ResponseBox;
@@ -50,11 +51,14 @@ struct Foo {
     z: u8,
 }
 
-struct Backend { }
+struct Backend {
+    segment_anything: SegmentAnything,
+}
 
 impl Backend {
     pub fn new() -> Result<Self, BackendError> {
-        Ok(Backend {})
+        let segment_anything = SegmentAnything::new()?;
+        Ok(Backend {segment_anything})
     }
 
     pub fn request_file(&self, rq: &Request) -> Result<Option<ResponseBox>, BackendError> {
