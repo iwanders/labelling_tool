@@ -114,11 +114,13 @@ impl Backend {
                 )
             }
             "backend/sam_trigger" => {
+                // Handle the preflight request here.
                 if rq.method() != &Method::Post {
                     return Ok(Some(tiny_http::Response::from_string(serde_json::to_string_pretty("").unwrap())
                         .with_status_code(tiny_http::StatusCode(200)).allow_cors()
                         .boxed()));
                 }
+
                 let f = Foo{z: 3};
 
                 use std::io::Read;

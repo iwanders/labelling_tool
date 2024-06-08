@@ -22,12 +22,12 @@
   <head>
     <title>Labelling Tool</title>
     <!-- open layers -->
-    <link rel="stylesheet" href="ol-v5.3.0-dist/ol.css" type="text/css">
-    <script type="text/javascript" src="ol-v5.3.0-dist/ol.js"></script>
+    <link rel="stylesheet" href="ol-v9.2.4/ol.css" type="text/css">
+    <script type="text/javascript" src="ol-v9.2.4/ol.js"></script>
 
     <!-- ol-ext -->
-    <link rel="stylesheet" href="ol-ext-60e17ad-dist/ol-ext.css" />
-    <script type="text/javascript" src="ol-ext-60e17ad-dist/ol-ext.js"></script>
+    <link rel="stylesheet" href="ol-ext-4.0.18/ol-ext.css" />
+    <script type="text/javascript" src="ol-ext-4.0.18/ol-ext.js"></script>
   
     <!-- FontAwesome -->
     <link rel="stylesheet" href="font-awesome-4.7.0/css/font-awesome.min.css">
@@ -133,11 +133,10 @@
             source: new Static({
               url: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
               projection: projection,
-              imageExtent: extent
+              imageExtent: extent,
             })
           });
       var edit_layer = new ol.layer.Vector( { source: new ol.source.Vector() })
-
       var map = new Map({
         layers: [
           static_layer, edit_layer
@@ -150,7 +149,7 @@
           maxZoom: 7,
           minZoom: -2
         }),
-        interactions: ol.interaction.defaults({
+        interactions: ol.interaction.defaults.defaults({
           dragPan: false, 
           mouseWheelZoom: false
         }).extend([
