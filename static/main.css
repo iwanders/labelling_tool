@@ -50,3 +50,7 @@
 	max-width: 100%;
 	border-radius: 5px;
 }
+
+.hidden {
+	display: none;
+}

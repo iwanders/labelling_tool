@@ -1,6 +1,6 @@
 use tiny_http;
 use serde::{Deserialize, Serialize};
-
+use tiny_http::Method;
 use std::sync::Arc;
 use std::thread;
 
@@ -51,6 +51,21 @@ struct Foo {
     z: u8,
 }
 
+trait AllowCors {
+    fn allow_cors(self) -> Self;
+}
+impl<T:std::io::Read> AllowCors for tiny_http::Response<T> {
+    fn allow_cors(self) ->  Self {
+        self.with_header(tiny_http::Header {
+            field: "Access-Control-Allow-Origin".parse().unwrap(),
+            value: AsciiString::from_ascii("*").unwrap(),
+        }).with_header(tiny_http::Header {
+            field: "Access-Control-Allow-Headers".parse().unwrap(),
+            value: AsciiString::from_ascii("*").unwrap(),
+        })
+    }
+}
+
 struct Backend {
     segment_anything: SegmentAnything,
 }
@@ -98,11 +113,26 @@ impl Backend {
                         .boxed(),
                 )
             }
+            "backend/sam_trigger" => {
+                if rq.method() != &Method::Post {
+                    return Ok(Some(tiny_http::Response::from_string(serde_json::to_string_pretty("").unwrap())
+                        .with_status_code(tiny_http::StatusCode(200)).allow_cors()
+                        .boxed()));
+                }
+                let f = Foo{z: 3};
+
+                use std::io::Read;
+                let mut data = vec![];
+                let _ = rq.as_reader().read_to_end(&mut data)?;
+                println!("data: {:?}, len: {:?}", &data[0..10], data.len());
+                Some(
+                    tiny_http::Response::from_string(serde_json::to_string_pretty(&f).unwrap())
+                        .with_status_code(tiny_http::StatusCode(200))
+                        .boxed(),
+                )
+            }
             _ => None,
-        }.map(|z| z.with_header(tiny_http::Header {
-            field: "Access-Control-Allow-Origin".parse().unwrap(),
-            value: AsciiString::from_ascii("*").unwrap(),
-        })))
+        }.map(|z| z.allow_cors()))
     }
 }
 

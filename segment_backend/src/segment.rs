@@ -38,14 +38,14 @@ impl SegmentAnything {
     pub fn new() -> anyhow::Result<Self> {
         let args_cpu = false;
         let use_tiny = false;
-        let model: Option<std::path::PathBuf> = None;
+        let sam_model: Option<std::path::PathBuf> = None;
         let device = device(args_cpu)?;
 
         // let (image, initial_h, initial_w) = candle_examples::load_image(&args.image, Some(sam::IMAGE_SIZE))?;
         // let image = image.to_device(&device)?;
         // println!("loaded image {image:?}");
 
-        let model = match model {
+        let model = match sam_model {
             Some(model) => std::path::PathBuf::from(model),
             None => {
                 let api = hf_hub::api::sync::Api::new()?;

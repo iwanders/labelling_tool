@@ -22,6 +22,13 @@ var Control = function ()
 {
 };
 
+let sam_backend_url  = () => {
+  let proto = $(location).attr("protocol");
+  let host = $(location).attr('hostname');
+  let backend_port = 8081;
+  return proto + "//" + host + ":" + backend_port + "/";
+};
+
 /**
  * @brief init function that registers all callbacks and initialises state variables.
  */
@@ -65,15 +72,15 @@ Control.prototype.init = function(static_layer, edit_layer, map, projection, und
     self.setEntry(1);
   });
 
+  // Default the sam backend to false;
+  self.sam_backend = false;
 
-  // Retrieve the max entry index from the backend.
-  // craft the backend url, 
-  let proto = $(location).attr("protocol");
-  let host = $(location).attr('hostname');
-  let backend_port = 8081;
-  console.log(proto, host, backend_port);
-  $.getJSON(proto + "//" + host + ":" + backend_port + "/backend/foo", function( data ) {
-    console.log("Hit backend! data: ", data);
+  // Then, check if the SAM backend is reachable:
+  $.getJSON(sam_backend_url() + "backend/foo", function( data ) {
+    console.log("Found sam backend, setting it to true.");
+    self.sam_backend = true;
+    $("#sam_control").removeClass("hidden");
+    self.samTrigger();
   });
 
   // Bind forwards / backwards buttons.
@@ -93,6 +100,14 @@ Control.prototype.init = function(static_layer, edit_layer, map, projection, und
   {
     self.changeFilter(event);
   });
+
+  // Bind sam trigger
+  $("#sam_trigger").click(function (event)
+  {
+    self.samTrigger();
+    event.preventDefault();
+  });
+
 
   // Set the map style function.
   this.edit_layer.setStyle(function(feature, view_res)
@@ -720,4 +735,27 @@ Control.prototype.applyFilter = function(style, strength)
     // Update the openlayers image to use the created filtered image.
     self.setStaticSource(canvas.toDataURL(), this.width, this.height);
   }
+}
+
+
+Control.prototype.samTrigger = function()
+{
+  var self = this;
+  // ehh, yeah, ehm, obtain self.current_img, then dispatch that, together with the points to the sam side?
+  var img = new Image();
+  if (self.entry_image_url === undefined) {
+    console.log("Can't trigger sam, no image url.");
+    return;
+  }
+  fetch(self.entry_image_url).then(response => response.arrayBuffer()).then(buf => {
+    //  console.log(buf);
+    const req = new XMLHttpRequest();
+    req.open("POST", sam_backend_url() + "backend/sam_trigger", true);
+    req.onload = (event) => {
+    // Uploaded
+    };
+    const blob = new Blob([buf], { type: "image/png" });
+    req.send(blob);
+  });
+
 }
