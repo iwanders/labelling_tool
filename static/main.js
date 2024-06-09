@@ -421,7 +421,7 @@ Control.prototype.setStaticImage = function(img_path)
     // When load is finished, create the new static layer.
     console.log("Image to be loaded is: " + this.width + 'x' + this.height);
     self.setStaticSource(img_path, this.width, this.height);
-    self.map.getView().fit([0, 0, this.width, this.height], self.map.getSize()); 
+    //  self.map.getView().fit([0, 0, this.width, this.height], self.map.getSize()); 
   }
   img.src = img_path;   // load the image, then when that's done update the map now that we know the resolution.
 };
