@@ -47,6 +47,8 @@ Control.prototype.init = function(static_layer, edit_layer, map, projection, und
   this.drawing_interactions = [];
   this.draw_active = false;
 
+  this.image_interpolation = false;
+
   // Hook keydown such that we can do ctrl+z, delete and ctrl+y
   document.addEventListener('keydown', function (event)
   {
@@ -100,6 +102,13 @@ Control.prototype.init = function(static_layer, edit_layer, map, projection, und
   $("#sam_trigger").click(function (event)
   {
     self.samTrigger();
+    event.preventDefault();
+  });
+
+  // Bind sam trigger
+  $("#interpolate_button").click(function (event)
+  {
+    self.toggleInterpolation();
     event.preventDefault();
   });
 
@@ -366,7 +375,7 @@ Control.prototype.setStaticSource = function (url, width, height)
     projection: self.projection,
     imageExtent: [0, 0, width, height],
     attributions: layer_attributions,
-    interpolate:false,
+    interpolate: this.image_interpolation,
   }));
   $("#filter_msg").text("");
 }
@@ -678,6 +687,17 @@ Control.prototype.rightClicked = function(event)
     interaction.removePoint();
     self.deferedSave();
   }
+}
+/**
+ * @brief toggles interpolation in the image.
+ */
+Control.prototype.toggleInterpolation = function(event)
+{
+  var self = this;
+  self.image_interpolation = !self.image_interpolation;
+  $("#interpolate_button").text("interpolation: " + self.image_interpolation);
+  //  self.setStaticImage(self.entry_image_url);
+  self.setStaticSource(self.img_path, self.width, self.height);
 }
 /*
 Control.prototype.applyFilter = function(style, strength)
