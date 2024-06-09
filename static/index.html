@@ -36,7 +36,6 @@
     <script type="text/javascript" src="jquery-1.11.0.min.js"></script>
 
     <!-- Code with actual logic. -->
-    <script type="text/javascript" src="ol_additions.js"></script>
     <script type="text/javascript" src="main.js"></script>
     <link rel="stylesheet" href="main.css">
     
@@ -59,7 +58,7 @@
         <li>Undo and redo changes with ctrl+z and ctrl+y or from the control bar, this is an experimental feature from ol-ext.</li>
         <li>While drawing a polygon use ctrl+z or ctrl+rightclick to remove the previously inserted point.</li>
         <li>Close new polygons quickly with doubleclick. Use ctrl+z to remove the last placed control point while drawing.</li>
-        <li>Try the dropdown for some options... :)</li>
+        <li>Mouse over the edit bar to see the hotkeys for various actions.</li>
       </ul>
     </p>
     <p>
@@ -78,23 +77,26 @@
   </dialog>
     <div class="info">
       <button id="info_help" class="button">help</button>
-      <button id="info_prev" class="button"><i class="fa fa-arrow-left"></i> prev</button>
+      <button id="info_prev" class="button"><i class="fa fa-arrow-left"></i> prev (a) </button>
       <input type="number" id="info_entry_current" name="info_entry_current" min="1" max="100" value="1" style="width:5%;"> / <span id="info_entry_count">--</span>
-      <button id="info_next"  class="button">next <i class="fa fa-arrow-right"></i></button>
+      <button id="info_next"  class="button">next (d) <i class="fa fa-arrow-right"></i></button>
       <button id="interpolate_button"  class="button">interpolate: false
       </button>
 
-      <span id="sam_control" class="sam_control hidden">
+      <span id="sam_control" class="sam_control gone">
         <button id="sam_trigger"  class="button">trigger</button>
         opacity<input type="range" id="sam_opacity" name="sam_opacity" min="0" max="100" value="50" />
         threshold:<input type="range" id="sam_threshold" name="sam_threshold" min="0" max="1000" value="0" />
         <span id="sam_threshold_text">0.5</span>
       </span>
 
-
-      <span id="labels" style="float: right">
-        <button class="label" >foo</span>
-        <button class="label" >bar</span>
+      <span style="float: right">
+        <button id="label_prev" class="button"><i class="fa fa-arrow-left"></i> label (q) </button>
+        <button id="label_next" class="button"><i class="fa fa-arrow-right"></i> label (e) </button>
+        <span id="labels">
+          <button class="label" >foo</span>
+          <button class="label" >bar</span>
+        </span>
       </span>
     </div>
     <div id="map" class="map"></div>
@@ -182,7 +184,7 @@
           DrawHole:false,
           DrawRegular: {title:"Regular (R)"},
           Select: {title:"Select (S)"},
-          DrawPolygon: {title:"Polygon (Q)"},
+          DrawPolygon: {title:"Polygon (W)"},
           Transform: {title:"Transform (T)"},
         }});
       map.addControl(edit);
@@ -197,8 +199,20 @@
         if (event.key === 't') {
           edit.getInteraction('Transform').setActive(true);
         }
-        if (event.key === 'q') {
+        if (event.key === 'w') {
           edit.getInteraction('DrawPolygon').setActive(true);
+        }
+        if (event.key === "a") {
+          $("#info_prev").click();
+        }
+        if (event.key === "d") {
+          $("#info_next").click();
+        }
+        if (event.key === "q") {
+          $("#label_prev").click();
+        }
+        if (event.key === "e") {
+          $("#label_next").click();
         }
       });
 

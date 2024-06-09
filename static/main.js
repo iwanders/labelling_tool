@@ -82,7 +82,7 @@ Control.prototype.init = function(static_layer, edit_layer, sam_layer, map, proj
   $.getJSON(sam_backend_url() + "backend/foo", function( data ) {
     console.log("Found sam backend, setting it to true.");
     self.sam_backend = true;
-    $("#sam_control").removeClass("hidden");
+    $("#sam_control").removeClass("gone");
     self.samTrigger();
   });
 
@@ -115,6 +115,19 @@ Control.prototype.init = function(static_layer, edit_layer, sam_layer, map, proj
   {
     self.sam_threshold = event.target.value / 100.0;
     $("#sam_threshold_text").text(self.sam_threshold);
+  });
+
+
+
+  $("#label_prev").click(function (event)
+  {
+    self.labelChange(-1);
+    event.preventDefault();
+  });
+  $("#label_next").click(function (event)
+  {
+    self.labelChange(1);
+    event.preventDefault();
   });
 
 
@@ -454,7 +467,8 @@ Control.prototype.updateAvailableLabels = function ()
     }
     var button = $('<input type="button" class="label button" title="' + title + '" value="' + label+ '" style="background-color: #' + entry.color + '"/>');
 
-    self.entry_labels[label] = entry;  // add thsi entry to the current entry labels.
+    self.entry_labels[label] = entry;  // add this entry to the current entry labels.
+    entry.button = button;
     self.entry_shown.add(label);  // show by default.
 
     // Right click
@@ -485,40 +499,8 @@ Control.prototype.updateAvailableLabels = function ()
     });
 
     // left click
-    button.click(function (event)
-    {
-      self.entry_current_label = label;  // This is the new addition type we'll do.
+    button.click(() => self.selectLabel(label));
 
-      // Be sure to show this entry.
-      self.entry_shown.add(label);
-      button.removeClass( "hidden" );
-
-      // Remove all other editable labels.
-      $(".info .label.editable").each( function (i, entry)
-      {
-        $(entry).removeClass( "editable" );
-      });
-
-      // Add the editable label to this one.
-      button.addClass( "editable" );
-      event.preventDefault();
-
-      // If we had any selected components, switch their type;
-      var selected_features = self.getSelectedFeatures();
-      if (selected_features.length)
-      {
-        for (let feature of selected_features)
-        {
-          feature.setProperties({
-            'label': self.entry_current_label
-          });
-        }
-        self.deferedSave();
-      }
-
-      // Make sure the layer represents this.
-      self.updateLayers();
-    });
     labels.append(button);
     if (first_label == undefined) {
       first_label = button;
@@ -537,6 +519,71 @@ Control.prototype.updateAvailableLabels = function ()
     first_label.click();
   }
 }
+
+Control.prototype.selectLabel = function(label) {
+  var self = this;
+
+  //  self.entry_labels
+  if (!(label in self.entry_labels)) {
+    return;
+  }
+
+  let button = self.entry_labels[label].button;
+  self.entry_current_label = label;  // This is the new addition type we'll do.
+
+  // Be sure to show this entry.
+  self.entry_shown.add(label);
+  button.removeClass( "hidden" );
+
+  // Remove all other editable labels.
+  $(".info .label.editable").each( function (i, entry)
+  {
+    $(entry).removeClass( "editable" );
+  });
+
+  // Add the editable label to this one.
+  button.addClass( "editable" );
+  event.preventDefault();
+
+  // If we had any selected components, switch their type;
+  var selected_features = self.getSelectedFeatures();
+  if (selected_features.length)
+  {
+    for (let feature of selected_features)
+    {
+      feature.setProperties({
+        'label': self.entry_current_label
+      });
+    }
+    self.deferedSave();
+  }
+
+  // Make sure the layer represents this.
+  self.updateLayers();
+
+}
+
+Control.prototype.labelChange = function(direction)
+{
+  var self = this;
+  let actual_labels = [];
+  let current_index = 0;
+  // find the names from the actual labels.
+  $.each($("#labels").children(), (i, e) => {
+    if ($(e).hasClass("hidden")) {
+      return;
+    }
+    actual_labels.push(e.value);
+    if (e.value === self.entry_current_label) {
+      current_index = i;
+    }
+  });
+  //  console.log("actual labels", actual_labels, current_index);
+  let new_index = current_index + direction;
+  new_index = new_index < 0 ? actual_labels.length + new_index : new_index % actual_labels.length;
+  self.selectLabel(actual_labels[new_index]);
+}
+
 
 /**
  * @brief Update the entries that can be shown on layers.
