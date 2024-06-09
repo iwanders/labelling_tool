@@ -125,7 +125,6 @@ Control.prototype.init = function(static_layer, edit_layer, sam_layer, map, proj
     event.preventDefault();
   });
 
-
   // Set the map style function.
   this.edit_layer.setStyle(function(feature, view_res)
   {

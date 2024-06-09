@@ -180,8 +180,27 @@
           Offset:false,
           Split:false,
           DrawHole:false,
+          DrawRegular: {title:"Regular (R)"},
+          Select: {title:"Select (S)"},
+          DrawPolygon: {title:"Polygon (Q)"},
+          Transform: {title:"Transform (T)"},
         }});
       map.addControl(edit);
+
+      window.document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape' || event.key === "s") {
+          edit.getInteraction('Select').setActive(true);
+        }
+        if (event.key === 'r') {
+          edit.getInteraction('DrawRegular').setActive(true);
+        }
+        if (event.key === 't') {
+          edit.getInteraction('Transform').setActive(true);
+        }
+        if (event.key === 'q') {
+          edit.getInteraction('DrawPolygon').setActive(true);
+        }
+      });
 
       // Undo redo interaction
       var undoInteraction = new ol.interaction.UndoRedo();
