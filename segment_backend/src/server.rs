@@ -81,12 +81,9 @@ where
 
 fn serialize_base64_string<S>(data: &Vec<u8>, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
     use base64::{Engine as _, engine::{general_purpose}};
-    use serde::ser::Error;
 
-    let mut buf = Vec::new();
-    // make sure we'll have a slice big enough for base64 + padding
-    buf.resize(data.len() * 4 / 3 + 4, 0);
-    general_purpose::STANDARD.encode_slice(data, &mut buf).map_err(|e| S::Error::custom(format!("failure: {e:?}")))?;
+    let mut buf = String::new();
+    general_purpose::STANDARD.encode_string(data, &mut buf);
 
     buf.serialize(serializer)
 }
