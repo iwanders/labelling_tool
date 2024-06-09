@@ -151,7 +151,7 @@ class Data:
 
     def update_data(self):
         """Updates the data object by traversing through the path again in search of yaml and data files."""
-        self.entries = sorted(self.data_loader(self.data_path, self.sidecar_path, {"classes":[]}))
+        self.entries = self.data_loader(self.data_path, self.sidecar_path, {"classes":[]})
         print("Entries:")
         for index, img in enumerate(self.entries):
             print("{: >5d} {}".format(index, img))

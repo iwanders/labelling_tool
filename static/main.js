@@ -374,6 +374,8 @@ Control.prototype.setEntry = function (entry)
     self.entry_info = data;
     self.entry_image_url = "entry_data?entry=" + (self.getEntry());
 
+    $("#entry_filename").text(self.entry_info.path);
+
     // update the image.
     self.setStaticImage(self.entry_image_url);
 
