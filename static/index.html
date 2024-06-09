@@ -144,6 +144,7 @@
           });
       sam_layer.setOpacity(0.5);
       var edit_layer = new ol.layer.Vector( { source: new ol.source.Vector() })
+      let zoomFactorDelta = 2;
       var map = new Map({
         layers: [
           static_layer, sam_layer, edit_layer, 
@@ -152,9 +153,10 @@
         view: new View({
           projection: projection,
           center: [512, 512],
-          zoom: 1,
-          maxZoom: 7,
-          minZoom: -2
+          minZoom: -2,
+          zoomFactor: Math.pow(2, 1/zoomFactorDelta),
+          zoom: 0.1 * zoomFactorDelta,
+          maxZoom: 20 * zoomFactorDelta
         }),
         interactions: ol.interaction.defaults.defaults({
           dragPan: false, 
@@ -176,7 +178,8 @@
           DrawPoint:true,
           DrawLine:false,
           Offset:false,
-          Split:false
+          Split:false,
+          DrawHole:false,
         }});
       map.addControl(edit);
 
