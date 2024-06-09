@@ -36,6 +36,7 @@
     <script type="text/javascript" src="jquery-1.11.0.min.js"></script>
 
     <!-- Code with actual logic. -->
+    <script type="text/javascript" src="ol_additions.js"></script>
     <script type="text/javascript" src="main.js"></script>
     <link rel="stylesheet" href="main.css">
     
@@ -130,10 +131,19 @@
               interpolate: false,
             }),
           });
+      var sam_layer = new ImageLayer({
+            source: new Static({
+              url: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
+              projection: projection,
+              imageExtent: extent,
+              interpolate: false,
+            }),
+          });
+//~       sam_layer.setZIndex(3);
       var edit_layer = new ol.layer.Vector( { source: new ol.source.Vector() })
       var map = new Map({
         layers: [
-          static_layer, edit_layer
+          static_layer, sam_layer, edit_layer, 
         ],
         target: 'map',
         view: new View({
@@ -201,7 +211,7 @@
       edit.addControl(bar);
 
       var control = new Control();
-      control.init(static_layer, edit_layer, map, projection, undoInteraction);
+      control.init(static_layer, edit_layer, sam_layer, map, projection, undoInteraction);
 
       // $(".ol-drawpolygon.ol-button button")[0].click(); // Default selected tool is draw polygon.
     </script>

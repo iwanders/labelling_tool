@@ -32,11 +32,12 @@ let sam_backend_url  = () => {
 /**
  * @brief init function that registers all callbacks and initialises state variables.
  */
-Control.prototype.init = function(static_layer, edit_layer, map, projection, undo_interaction)
+Control.prototype.init = function(static_layer, edit_layer, sam_layer, map, projection, undo_interaction)
 {
   var self = this;
   this.static_layer = static_layer;
   this.edit_layer = edit_layer;
+  this.sam_layer = sam_layer;
   this.map = map;
   this.projection = projection;
   this.undo_interaction = undo_interaction;
@@ -380,6 +381,7 @@ Control.prototype.setStaticSource = function (url, width, height)
   $("#filter_msg").text("");
 }
 
+
 /**
  * @brief Retrieve a static image and set the layer.
  */
@@ -397,6 +399,19 @@ Control.prototype.setStaticImage = function(img_path)
   }
   img.src = img_path;   // load the image, then when that's done update the map now that we know the resolution.
 };
+
+Control.prototype.setSamImage = function(img_data_url, width, height) {
+  var self = this;
+  //  console.log(img_data_url);
+  //  console.log(self.projection, self.image_interpolation);
+  console.log("Set sam layer source:",  width, height, self.projection);
+  self.sam_layer.setSource(new Static({
+    url: img_data_url,
+    projection: self.projection,
+    imageExtent: [0, 0, width, height],
+    interpolate: self.image_interpolation,
+  }));
+}
 
 /**
  * @brief Update the available labels in the top right and bind functions to them.
@@ -676,7 +691,7 @@ Control.prototype.rightClicked = function(event)
     }
     return;
   }
-
+  
   var have_selected = self.getSelectedFeatures().length;
   if (have_selected == 0)
   {
@@ -727,25 +742,77 @@ Control.prototype.applyFilter = function(style, strength)
   }
 }*/
 
+// https://developer.mozilla.org/en-US/docs/Glossary/Base64
+function base64ToBytes(base64) {
+  const binString = atob(base64);
+  return Uint8Array.from(binString, (m) => m.codePointAt(0));
+}
+function base64ToArrayBuffer(base64) {
+    var binaryString = atob(base64);
+    var bytes = new Uint8Array(binaryString.length);
+    for (var i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+    }
+    return bytes.buffer;
+}
+function bytesToBase64(bytes) {
+  const binString = Array.from(bytes, (byte) =>
+    String.fromCodePoint(byte),
+  ).join("");
+  return btoa(binString);
+}
+function arrayBufferToBase64( buffer ) {
+    var binary = '';
+    var bytes = new Uint8Array( buffer );
+    var len = bytes.byteLength;
+    for (var i = 0; i < len; i++) {
+        binary += String.fromCharCode( bytes[ i ] );
+    }
+    return window.btoa( binary );
+}
 
 Control.prototype.samTrigger = function()
 {
   var self = this;
   // ehh, yeah, ehm, obtain self.current_img, then dispatch that, together with the points to the sam side?
-  var img = new Image();
   if (self.entry_image_url === undefined) {
     console.log("Can't trigger sam, no image url.");
     return;
   }
+  let img_width;
+  let img_height;
   fetch(self.entry_image_url).then(response => response.arrayBuffer()).then(buf => {
-    //  console.log(buf);
-    const req = new XMLHttpRequest();
-    req.open("POST", sam_backend_url() + "backend/sam_trigger", true);
-    req.onload = (event) => {
-    // Uploaded
-    };
-    const blob = new Blob([buf], { type: "image/png" });
-    req.send(blob);
+    //  console.log("buf:", buf);
+    let image_bytes = arrayBufferToBase64(buf);
+    let z = [];
+    // Collect the points of the currently selected category.
+    for (let f of self.entry_features) {
+      //  console.log(f);
+      let geom = f.getGeometry();
+      if (f.getGeometry() instanceof ol.geom.Point) {
+        let p = geom.getFirstCoordinate();
+        //  console.log(p);
+        //  console.log(self.width);
+        //  console.log(self.projection.getExtent());
+        img_width = self.projection.getExtent()[2];
+        img_height = self.projection.getExtent()[3];
+        let nx = p[0] / img_width;
+        let ny = 1.0 - (p[1] / img_height);
+        z.push({"x": nx, "y": ny, "category": "Include"});
+      }
+    }
+    fetch(sam_backend_url() + "backend/sam_trigger", {
+        method : "POST",
+        body : JSON.stringify({
+            points: z,
+            image: image_bytes,
+            threshold: 0.0,
+        })
+    }).then(
+        response => response.json()
+    ).then(d => {
+        self.setSamImage("data:image/png;base64,"+d.image, img_width,img_height);
+    });
   });
 
 }

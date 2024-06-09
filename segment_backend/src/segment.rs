@@ -165,16 +165,28 @@ impl SegmentAnything {
                 Some(image) => image,
                 None => anyhow::bail!("error saving merged image"),
             };
+
+        /*
         let mask_img_resized = image::DynamicImage::from(mask_img.clone()).resize_to_fill(
             img.width(),
             img.height(),
             image::imageops::FilterType::CatmullRom,
         );
         mask_img_resized.save("/tmp/sam_merged.png")?;
+        */
 
+        let mut mask_img_mask = image::DynamicImage::from(mask_img.clone()).to_rgba8();
+        for x in 0..mask_img_mask.width() {
+            for y in 0..mask_img_mask.height() {
+                let mask_p = mask_img_mask.get_pixel_mut(x, y);
+                if mask_p.0[0] < 100 {
+                    mask_p.0[3] = 0;
+                }
+            }
+        }
 
         let mut mask_bytes: Vec<u8> = Vec::new();
-        mask_img.write_to(&mut Cursor::new(&mut mask_bytes), image::ImageFormat::Png)?;
+        mask_img_mask.write_to(&mut Cursor::new(&mut mask_bytes), image::ImageFormat::Png)?;
         let res = SegmentResult{
             image: mask_bytes
         };
