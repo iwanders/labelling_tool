@@ -89,6 +89,10 @@ pub struct Point {
     category: Category,
 }
 
+pub struct SegmentResult {
+    pub image: Vec<u8>,
+}
+
 
 impl SegmentAnything {
     pub fn new() -> anyhow::Result<Self> {
@@ -126,7 +130,7 @@ impl SegmentAnything {
         })
     }
 
-    pub fn segment(&self, image_bytes: &[u8], threshold: f32, points: &[Point]) -> anyhow::Result<()> {
+    pub fn segment(&self, image_bytes: &[u8], threshold: f64, points: &[Point]) -> anyhow::Result<SegmentResult> {
         use image::io::Reader;
         use std::io::Cursor;
 
@@ -161,14 +165,19 @@ impl SegmentAnything {
                 Some(image) => image,
                 None => anyhow::bail!("error saving merged image"),
             };
-        let mask_img = image::DynamicImage::from(mask_img).resize_to_fill(
+        let mask_img_resized = image::DynamicImage::from(mask_img.clone()).resize_to_fill(
             img.width(),
             img.height(),
             image::imageops::FilterType::CatmullRom,
         );
-        mask_img.save("/tmp/sam_merged.png")?;
+        mask_img_resized.save("/tmp/sam_merged.png")?;
 
 
-        Ok(())
+        let mut mask_bytes: Vec<u8> = Vec::new();
+        mask_img.write_to(&mut Cursor::new(&mut mask_bytes), image::ImageFormat::Png)?;
+        let res = SegmentResult{
+            image: mask_bytes
+        };
+        Ok(res)
     }
 }

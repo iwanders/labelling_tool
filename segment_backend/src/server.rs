@@ -1,5 +1,5 @@
 use tiny_http;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, Deserializer, Serializer };
 use tiny_http::Method;
 use std::sync::Arc;
 use std::thread;
@@ -8,7 +8,7 @@ use ascii::AsciiString;
 use std::fs;
 use std::path::Path;
 
-use crate::segment::SegmentAnything;
+use crate::{segment::SegmentAnything, segment};
 
 fn get_content_type(path: &Path) -> &'static str {
     let extension = match path.extension() {
@@ -66,6 +66,44 @@ impl<T:std::io::Read> AllowCors for tiny_http::Response<T> {
     }
 }
 
+pub fn deserialize_base64_string<'de, D>(
+    deserializer: D,
+) -> core::result::Result<Vec<u8>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let input: &str = Deserialize::deserialize(deserializer)?;
+    use base64::{Engine as _, engine::{general_purpose}};
+    use serde::de::Error;
+    let bytes = general_purpose::STANDARD.decode(input).map_err(|e| D::Error::custom(format!("failure: {e:?}")))?;
+    Ok(bytes)
+}
+
+fn serialize_base64_string<S>(data: &Vec<u8>, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
+    use base64::{Engine as _, engine::{general_purpose}};
+    use serde::ser::Error;
+
+    let mut buf = Vec::new();
+    // make sure we'll have a slice big enough for base64 + padding
+    buf.resize(data.len() * 4 / 3 + 4, 0);
+    general_purpose::STANDARD.encode_slice(data, &mut buf).map_err(|e| S::Error::custom(format!("failure: {e:?}")))?;
+
+    buf.serialize(serializer)
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+struct SegmentPayload{
+    /// The points of interest to segment with.
+    points: Vec<segment::Point>,
+    /// The data representing the image (base64 string on the wire).
+    #[serde(deserialize_with = "deserialize_base64_string")]
+    #[serde(serialize_with = "serialize_base64_string")]
+    image: Vec<u8>,
+    /// The threshold to use.
+    #[serde(default)]
+    threshold: f64,
+}
+
 struct Backend {
     sam: SegmentAnything,
 }
@@ -121,18 +159,16 @@ impl Backend {
                         .boxed()));
                 }
 
-                let f = Foo{z: 3};
+                let mut content = String::new();
+                rq.as_reader().read_to_string(&mut content)?;
+                let r: SegmentPayload = serde_json::from_str(&content)?;
 
-                use std::io::Read;
-                let mut data = vec![];
-                let _ = rq.as_reader().read_to_end(&mut data)?;
-                println!("data: {:?}, len: {:?}", &data[0..10], data.len());
+                let segment_res = self.sam.segment(&r.image, r.threshold, &r.points)?;
 
-                let threshold = 0.0;
-                let segment_res = self.sam.segment(&data, threshold, &[])?;
-
+                let mut res: SegmentPayload  = r.clone();
+                res.image = segment_res.image;
                 Some(
-                    tiny_http::Response::from_string(serde_json::to_string_pretty(&f).unwrap())
+                    tiny_http::Response::from_string(serde_json::to_string_pretty(&res).unwrap())
                         .with_status_code(tiny_http::StatusCode(200))
                         .boxed(),
                 )
