@@ -105,8 +105,20 @@ Control.prototype.init = function(static_layer, edit_layer, sam_layer, map, proj
     self.samTrigger();
     event.preventDefault();
   });
+  $("#sam_opacity").change(function (event)
+  {
+    console.log("Sam opacity change: ", event.target);
+    sam_layer.setOpacity(event.target.value / 100.0);
+  });
 
-  // Bind sam trigger
+  $("#sam_threshold").change(function (event)
+  {
+    self.sam_threshold = event.target.value / 100.0;
+    $("#sam_threshold_text").text(self.sam_threshold);
+  });
+
+
+  // Interpolate toggle
   $("#interpolate_button").click(function (event)
   {
     self.toggleInterpolation();
@@ -791,9 +803,10 @@ Control.prototype.samTrigger = function()
       let geom = f.getGeometry();
       if (f.getGeometry() instanceof ol.geom.Point) {
         let p = geom.getFirstCoordinate();
-        //  console.log(p);
-        //  console.log(self.width);
-        //  console.log(self.projection.getExtent());
+        let label_type = f.getProperties()["label"];
+        if (label_type != self.entry_current_label) {
+          continue;
+        }
         img_width = self.projection.getExtent()[2];
         img_height = self.projection.getExtent()[3];
         let nx = p[0] / img_width;
@@ -806,7 +819,7 @@ Control.prototype.samTrigger = function()
         body : JSON.stringify({
             points: z,
             image: image_bytes,
-            threshold: 0.0,
+            threshold: self.sam_threshold,
         })
     }).then(
         response => response.json()
