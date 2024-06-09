@@ -525,6 +525,7 @@ Control.prototype.selectLabel = function(label) {
 
   //  self.entry_labels
   if (!(label in self.entry_labels)) {
+    console.log("cannot select ", label);
     return;
   }
 
@@ -573,14 +574,16 @@ Control.prototype.labelChange = function(direction)
     if ($(e).hasClass("hidden")) {
       return;
     }
-    actual_labels.push(e.value);
     if (e.value === self.entry_current_label) {
-      current_index = i;
+      current_index = actual_labels.length;
     }
+    actual_labels.push(e.value);
   });
-  //  console.log("actual labels", actual_labels, current_index);
+  console.log("actual labels", actual_labels, current_index);
   let new_index = current_index + direction;
-  new_index = new_index < 0 ? actual_labels.length + new_index : new_index % actual_labels.length;
+  new_index = new_index < 0 ? actual_labels.length + new_index : new_index % (actual_labels.length);
+  
+  console.log("selecting labels", new_index);
   self.selectLabel(actual_labels[new_index]);
 }
 
