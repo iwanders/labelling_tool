@@ -28,6 +28,7 @@ import copy
 import argparse
 import io
 
+
 curdir = os.path.join(os.getcwd(), os.path.dirname(__file__)) 
 
 # https://stackoverflow.com/a/36584863
@@ -45,11 +46,11 @@ class Image:
     """
         Simple class to represent a single image.
     """
-    def __init__(self, path, config):
+    def __init__(self, path, sidecar_path, config):
         """Initialise an image given the path and the configuration that was created for this entry."""
         self.config = config
         self.path = path
-        self.data_path = path[0:path.rindex(".")] + ".json"
+        self.data_path = sidecar_path[0:sidecar_path.rindex(".")] + ".json"
 
     def __repr__(self):
         return "<{} - ({})>".format(self.path, ", ".join([x["label"] for x in self.config["classes"]]))
@@ -73,6 +74,8 @@ class Image:
 
     def save_features(self, features):
         """Write the features for this image to the disk."""
+        directory_name = os.path.dirname(self.data_path)
+        os.makedirs(directory_name, exist_ok=True)
         with open(self.data_path, "w") as f:
             json.dump(features, f)
 
@@ -92,20 +95,22 @@ class Image:
         return self.path < a.path
 
 class Data:
-    def __init__(self, path):
-        self.path = path
+    def __init__(self, data_path, sidecar_path):
+        self.data_path = data_path
+        self.sidecar_path = sidecar_path
         self.update_data()
 
     @staticmethod
-    def data_loader(path, context):
+    def data_loader(data_path, sidecar_path, context):
         """
             Recursive functions that combines yaml files from each directory into one context that specifies classes.
             If it encounters a data file it creates an Image object with the current context.
         """
         entries = []
+        print(f"loading data {data_path}  sidecar: {sidecar_path}")
 
-        # first, we parse the yaml files in this directory.
-        yamlfiles = glob.glob(os.path.join(path, "*.yaml"))
+        # first, we parse the yaml files in the sidecar directories.
+        yamlfiles = glob.glob(os.path.join(sidecar_path, "*.yaml"))
         for yaml_fname in yamlfiles:
             print("Yamlfile: {}".format(yaml_fname))
             yaml_path = os.path.join(yaml_fname)
@@ -117,23 +122,26 @@ class Data:
                     print("Failed parsing {}: {}".format(yaml_path, selfexc))
 
         # then we parse the data files in this directory.
-        for content_fname in sorted(glob.glob(os.path.join(path, "*.*"))):
+        for content_fname in sorted(glob.glob(os.path.join(data_path, "*.*"))):
+            relative = os.path.relpath(content_fname, data_path)
             if (content_fname.endswith("yaml") or content_fname.endswith("json")):
                 continue
             # csv files contain a list of paths to image files to be loaded
             elif content_fname.endswith("csv"):
                 with open(os.path.join(content_fname), 'r') as list_file:
                     for filename in list_file:
-                        entries.append(Image(filename.strip(), context))
+                        entries.append(Image(filename.strip(), filename.strip(), context))
             else:
-                content_path = os.path.join(content_fname)
-                # print("Content file: {}, properties: {}".format(cf, str(context)))
-                entries.append(Image(content_path, context))
+                image_sidecar_path = os.path.join(sidecar_path, relative)
+                entries.append(Image(content_fname, image_sidecar_path, context))
 
         # finally, we iterate down, copying the context.
-        for root, dirs, files in os.walk(path):
+        for root, dirs, files in os.walk(data_path):
             for d in sorted(dirs):
-                entries.extend(Data.data_loader(os.path.join(root, d), copy.deepcopy(context)))
+                combined = os.path.join(root, d)
+                relative = os.path.relpath(combined, data_path)
+                final_sidecar = os.path.join(sidecar_path, relative)
+                entries.extend(Data.data_loader(combined, final_sidecar, copy.deepcopy(context)))
         return entries
 
 
@@ -143,7 +151,7 @@ class Data:
 
     def update_data(self):
         """Updates the data object by traversing through the path again in search of yaml and data files."""
-        self.entries = self.data_loader(self.path, {})
+        self.entries = sorted(self.data_loader(self.data_path, self.sidecar_path, {"classes":[]}))
         print("Entries:")
         for index, img in enumerate(self.entries):
             print("{: >5d} {}".format(index, img))
@@ -235,10 +243,13 @@ if __name__ == "__main__":
                         default="127.0.0.1")
     parser.add_argument('--dir', '-d', help="Folder which holds the to be labelled data.", type=str,
                         default=os.path.join(curdir, "label_test"))
+    parser.add_argument('--sidecar', '-s', help="Folder where the sidecar files and label information is present, defaults to '--dir'.", default=None)
 
     args = parser.parse_args()
     print("Traversing data folder in search of data.")
-    data = Data(args.dir)
+    data_dir = args.dir
+    sidecar_dir = args.dir if args.sidecar is None else args.sidecar
+    data = Data(args.dir, sidecar_dir)
     print("Found {} entries.".format(len(data.entries)))
    
     start_classification_server(args.port, args.host, data)

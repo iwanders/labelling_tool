@@ -7,7 +7,9 @@ Labelling Tool
 
 Data Structure
 --------------
-The current backend recursively reads through the data structure. The label specification (and any other config) is read from yaml files, information from yaml files in a folder propagates down to its subfolders. Whenever an image is encountered the configuration as constructed up to that point is associated to it. The entries are ordered by path.
+The current backend recursively reads through the data directory.
+
+The label specification (and any other config) is read from yaml files, information from yaml files in a folder propagates down to its subfolders. Whenever an image is encountered the configuration as constructed up to that point is associated to it. The entries are ordered by path.
 
 The yaml format has the following entries:
 ```yaml
@@ -19,11 +21,13 @@ classes:  # list of clasess, configurations in subdirs will be appended.
 ```
 See the `label_test` folder for an example on how to use this.
 
-The tool will save labels in a `.json` file with the same name as each image. The content of which is created by OpenLayers' GeoJSON export:
+The tool will save labels in a `.json` sidecar file with the same name as each image. The content of which is created by OpenLayers' GeoJSON export:
 
 ```json
 {"type": "FeatureCollection", "features": [{"type": "Feature", "geometry": {"type": "Polygon", "coordinates": [[[12.5, 382.75], [28, 331.75], [104.5, 342.25], [107, 388.25], [12.5, 382.75]]]}, "properties": {"label": "math"}}]}
 ```
+
+The dataset may be disjoint from the label specification and sidecar files by passing the `--sidecar` argument. By default label files and sidecar data is inside the data directory.
 
 
 Help
