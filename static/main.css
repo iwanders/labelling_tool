@@ -34,10 +34,7 @@
 
 .info .label.editable
 {
-	border-color: black;
-	border: solid;
-	border-width: 3px;
-	padding: 2px 7px;
+	text-decoration: underline;
 }
 
 .info .label.hidden {
