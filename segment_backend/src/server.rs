@@ -1,14 +1,14 @@
-use tiny_http;
-use serde::{Deserialize, Serialize, Deserializer, Serializer };
-use tiny_http::Method;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::sync::Arc;
 use std::thread;
+use tiny_http;
+use tiny_http::Method;
 
 use ascii::AsciiString;
 use std::fs;
 use std::path::Path;
 
-use crate::{segment::SegmentAnything, segment};
+use crate::{segment, segment::SegmentAnything};
 
 fn get_content_type(path: &Path) -> &'static str {
     let extension = match path.extension() {
@@ -54,33 +54,37 @@ struct Foo {
 trait AllowCors {
     fn allow_cors(self) -> Self;
 }
-impl<T:std::io::Read> AllowCors for tiny_http::Response<T> {
-    fn allow_cors(self) ->  Self {
+impl<T: std::io::Read> AllowCors for tiny_http::Response<T> {
+    fn allow_cors(self) -> Self {
         self.with_header(tiny_http::Header {
             field: "Access-Control-Allow-Origin".parse().unwrap(),
             value: AsciiString::from_ascii("*").unwrap(),
-        }).with_header(tiny_http::Header {
+        })
+        .with_header(tiny_http::Header {
             field: "Access-Control-Allow-Headers".parse().unwrap(),
             value: AsciiString::from_ascii("*").unwrap(),
         })
     }
 }
 
-pub fn deserialize_base64_string<'de, D>(
-    deserializer: D,
-) -> core::result::Result<Vec<u8>, D::Error>
+pub fn deserialize_base64_string<'de, D>(deserializer: D) -> core::result::Result<Vec<u8>, D::Error>
 where
     D: Deserializer<'de>,
 {
     let input: &str = Deserialize::deserialize(deserializer)?;
-    use base64::{Engine as _, engine::{general_purpose}};
+    use base64::{engine::general_purpose, Engine as _};
     use serde::de::Error;
-    let bytes = general_purpose::STANDARD.decode(input).map_err(|e| D::Error::custom(format!("failure: {e:?}")))?;
+    let bytes = general_purpose::STANDARD
+        .decode(input)
+        .map_err(|e| D::Error::custom(format!("failure: {e:?}")))?;
     Ok(bytes)
 }
 
-fn serialize_base64_string<S>(data: &Vec<u8>, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
-    use base64::{Engine as _, engine::{general_purpose}};
+fn serialize_base64_string<S>(data: &Vec<u8>, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    use base64::{engine::general_purpose, Engine as _};
 
     let mut buf = String::new();
     general_purpose::STANDARD.encode_string(data, &mut buf);
@@ -89,7 +93,7 @@ fn serialize_base64_string<S>(data: &Vec<u8>, serializer: S) -> Result<S::Ok, S:
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
-struct SegmentPayload{
+struct SegmentPayload {
     /// The points of interest to segment with.
     points: Vec<segment::Point>,
     /// The data representing the image (base64 string on the wire).
@@ -108,11 +112,10 @@ struct Backend {
 impl Backend {
     pub fn new() -> Result<Self, BackendError> {
         let sam = SegmentAnything::new()?;
-        Ok(Backend {sam})
+        Ok(Backend { sam })
     }
 
     pub fn request_file(&self, rq: &Request) -> Result<Option<ResponseBox>, BackendError> {
-        
         let url = rq.url().to_string();
         let path = url.strip_prefix("/").unwrap();
         let path = if path == "" {
@@ -134,13 +137,12 @@ impl Backend {
         }
     }
 
-
     pub fn backend_api(&self, rq: &mut Request) -> Result<Option<ResponseBox>, BackendError> {
         let url = rq.url().to_string();
         let path = url.strip_prefix("/").unwrap();
         Ok(match path {
             "backend/foo" => {
-                let f = Foo{z: 3};
+                let f = Foo { z: 3 };
                 // let stats = self.stats.to_plain();
                 Some(
                     tiny_http::Response::from_string(serde_json::to_string_pretty(&f).unwrap())
@@ -151,9 +153,12 @@ impl Backend {
             "backend/sam_trigger" => {
                 // Handle the preflight request here.
                 if rq.method() != &Method::Post {
-                    return Ok(Some(tiny_http::Response::from_string(serde_json::to_string_pretty("").unwrap())
-                        .with_status_code(tiny_http::StatusCode(200)).allow_cors()
-                        .boxed()));
+                    return Ok(Some(
+                        tiny_http::Response::from_string(serde_json::to_string_pretty("").unwrap())
+                            .with_status_code(tiny_http::StatusCode(200))
+                            .allow_cors()
+                            .boxed(),
+                    ));
                 }
 
                 let mut content = String::new();
@@ -162,7 +167,7 @@ impl Backend {
 
                 let segment_res = self.sam.segment(&r.image, r.threshold, &r.points)?;
 
-                let mut res: SegmentPayload  = r.clone();
+                let mut res: SegmentPayload = r.clone();
                 res.image = segment_res.image;
                 Some(
                     tiny_http::Response::from_string(serde_json::to_string_pretty(&res).unwrap())
@@ -171,7 +176,8 @@ impl Backend {
                 )
             }
             _ => None,
-        }.map(|z| z.allow_cors()))
+        }
+        .map(|z| z.allow_cors()))
     }
 }
 
@@ -181,8 +187,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let port = server.server_addr().to_ip().unwrap().port();
     println!("Now listening on port {}", port);
 
-    let backend = Arc::new(Backend::new(
-    )?);
+    let backend = Arc::new(Backend::new()?);
 
     // Serve the webserver with 4 threads.
     let mut handles = Vec::new();

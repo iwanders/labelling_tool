@@ -1,10 +1,8 @@
-
-use candle_core::{Tensor, DType, Device};
+use candle_core::{DType, Device, Tensor};
 use candle_nn::VarBuilder;
 use candle_transformers::models::segment_anything::sam;
 use candle_transformers::models::segment_anything::sam::Sam;
 use serde::{Deserialize, Serialize};
-
 
 pub fn device(cpu: bool) -> anyhow::Result<Device> {
     use candle_core::utils::{cuda_is_available, metal_is_available};
@@ -29,7 +27,10 @@ pub fn device(cpu: bool) -> anyhow::Result<Device> {
     }
 }
 
-pub fn load_image (img: image::DynamicImage, resize_longest: Option<usize>) -> anyhow::Result<(Tensor, usize, usize)> {
+pub fn load_image(
+    img: image::DynamicImage,
+    resize_longest: Option<usize>,
+) -> anyhow::Result<(Tensor, usize, usize)> {
     let (initial_h, initial_w) = (img.height() as usize, img.width() as usize);
     let img = match resize_longest {
         None => img,
@@ -71,7 +72,7 @@ pub struct SegmentAnything {
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Category {
     Include,
-    Exclude
+    Exclude,
 }
 impl Category {
     pub fn as_bool(&self) -> bool {
@@ -92,7 +93,6 @@ pub struct Point {
 pub struct SegmentResult {
     pub image: Vec<u8>,
 }
-
 
 impl SegmentAnything {
     pub fn new() -> anyhow::Result<Self> {
@@ -124,26 +124,28 @@ impl SegmentAnything {
         } else {
             sam::Sam::new(768, 12, 12, &[2, 5, 8, 11], vb)? // sam_vit_b
         };
-        Ok(Self{
-            device,
-            sam
-        })
+        Ok(Self { device, sam })
     }
 
-    pub fn segment(&self, image_bytes: &[u8], threshold: f64, points: &[Point]) -> anyhow::Result<SegmentResult> {
+    pub fn segment(
+        &self,
+        image_bytes: &[u8],
+        threshold: f64,
+        points: &[Point],
+    ) -> anyhow::Result<SegmentResult> {
         use image::io::Reader;
         use std::io::Cursor;
 
         let img = Reader::new(Cursor::new(image_bytes))
             .with_guessed_format()
-            .expect("Cursor io never fails").decode()?;
+            .expect("Cursor io never fails")
+            .decode()?;
         let (image, _initial_h, _initial_w) = load_image(img.clone(), Some(sam::IMAGE_SIZE))?;
         let image = image.to_device(&self.device)?;
 
-        let points = points.iter()
-            .map(|p| {
-                (p.x, p.y, p.category.as_bool())
-            })
+        let points = points
+            .iter()
+            .map(|p| (p.x, p.y, p.category.as_bool()))
             .collect::<Vec<_>>();
         let start_time = std::time::Instant::now();
         let (mask, iou_predictions) = self.sam.forward(&image, &points, false)?;
@@ -158,22 +160,12 @@ impl SegmentAnything {
         let (_one, h, w) = mask.dims3()?;
         let mask = mask.expand((3, h, w))?;
 
-
         let mask_pixels = mask.permute((1, 2, 0))?.flatten_all()?.to_vec1::<u8>()?;
         let mask_img: image::ImageBuffer<image::Rgb<u8>, Vec<u8>> =
             match image::ImageBuffer::from_raw(w as u32, h as u32, mask_pixels) {
                 Some(image) => image,
                 None => anyhow::bail!("error saving merged image"),
             };
-
-        /*
-        let mask_img_resized = image::DynamicImage::from(mask_img.clone()).resize_to_fill(
-            img.width(),
-            img.height(),
-            image::imageops::FilterType::CatmullRom,
-        );
-        mask_img_resized.save("/tmp/sam_merged.png")?;
-        */
 
         let mut mask_img_mask = image::DynamicImage::from(mask_img.clone()).to_rgba8();
         for x in 0..mask_img_mask.width() {
@@ -187,9 +179,7 @@ impl SegmentAnything {
 
         let mut mask_bytes: Vec<u8> = Vec::new();
         mask_img_mask.write_to(&mut Cursor::new(&mut mask_bytes), image::ImageFormat::Png)?;
-        let res = SegmentResult{
-            image: mask_bytes
-        };
+        let res = SegmentResult { image: mask_bytes };
         Ok(res)
     }
 }

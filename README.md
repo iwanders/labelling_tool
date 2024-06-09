@@ -40,6 +40,14 @@ Help
  - Close new polygons quickly with doubleclick. Use ctrl+z to remove the last placed control point while drawing.
  - Try the dropdown for some options... :)
 
+Segment Anything
+----------------
+The `segment_backend` directory holds a simple backend server that runs the Segment Anything model.
+
+Start it with `cargo r --features=cuda --release`, after which segmentation masks can be created from the points in the current category.
+
+If the segmentation backend is not running this functionality is hidden.
+
 Misc
 ----
 This label tool makes use of the following libraries:
