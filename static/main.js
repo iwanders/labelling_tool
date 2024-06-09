@@ -440,6 +440,12 @@ Control.prototype.updateAvailableLabels = function ()
   {
     return;
   }
+
+  let current_label = self.entry_current_label;
+
+  let found_current = false;
+  let first_label = undefined;
+
   $.each(self.entry_info["config"]["classes"], function (index, entry) {
     var label = entry.label;
     var title = entry.description;
@@ -515,13 +521,22 @@ Control.prototype.updateAvailableLabels = function ()
       self.updateLayers();
     });
     labels.append(button);
+    if (first_label == undefined) {
+      first_label = button;
+    }
 
-    // By default, select the 0th index label.
-    if (index == 0)
+    // Try to find the current label.
+    if (label == current_label)
     {
+      found_current = true;
       button.click();
     }
   });
+
+  if (!found_current && first_label !== undefined) {
+    // We didn't find the currently selected label... well, lets just select the first one.
+    first_label.click();
+  }
 }
 
 /**
