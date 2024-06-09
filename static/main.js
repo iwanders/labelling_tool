@@ -96,11 +96,6 @@ Control.prototype.init = function(static_layer, edit_layer, map, projection, und
     event.preventDefault();
   });
 
-  $("#filter").change(function(event)
-  {
-    self.changeFilter(event);
-  });
-
   // Bind sam trigger
   $("#sam_trigger").click(function (event)
   {
@@ -684,33 +679,7 @@ Control.prototype.rightClicked = function(event)
     self.deferedSave();
   }
 }
-
-/**
- * @brief Callback for the change filter dropdown.
- */
-Control.prototype.changeFilter = function(event)
-{
-  var self = this;
-
-  var f = $("#filter").val();
-  switch (f)
-  {
-    case 'colorburn':
-      self.applyFilter("color-burn", 0.9)
-      break;
-    case 'screen':
-      self.applyFilter("screen", 0.9)
-      break;
-  default:
-    console.log("nothing");
-    {
-      var ext = static_layer.getSource().getImageExtent()
-      self.setStaticSource(self.entry_image_url, ext[2], ext[3]);
-    }
-    break;
-  }
-}
-
+/*
 Control.prototype.applyFilter = function(style, strength)
 {
   var self = this;
@@ -736,7 +705,7 @@ Control.prototype.applyFilter = function(style, strength)
     // Update the openlayers image to use the created filtered image.
     self.setStaticSource(canvas.toDataURL(), this.width, this.height);
   }
-}
+}*/
 
 
 Control.prototype.samTrigger = function()
