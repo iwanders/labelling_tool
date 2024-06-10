@@ -1,0 +1,7 @@
+torch==2.3.1
+torchvision==0.18.1
+Pillow==10.3.0
+numpy==1.26.4
+CherryPy==18.9.0
+cherrypy-cors==1.7.0
+segment-anything @ git+https://github.com/facebookresearch/segment-anything@6fdee8f2727f4506cfbbe553e23b895e27956588

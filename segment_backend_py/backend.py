@@ -21,12 +21,7 @@
 import cherrypy
 import os
 import sys
-import json
-import glob
-import yaml
-import copy
 import argparse
-import io
 import cherrypy_cors
 cherrypy_cors.install()
 
@@ -40,6 +35,14 @@ class Web(object):
     @cherrypy.tools.json_out()
     @cherrypy.tools.json_in()
     def sam_trigger(self, *args, **kwargs):
+        if cherrypy.request.method == 'OPTIONS':
+            # This is a request that browser sends in CORS prior to
+            # sending a real request.
+
+            # Set up extra headers for a pre-flight OPTIONS request.
+            cherrypy_cors.preflight(allowed_methods=['GET', 'POST'])
+            return {}
+
         input_json = cherrypy.request.json
         
         return {}
@@ -48,7 +51,7 @@ class Web(object):
     @cherrypy.expose
     @cherrypy.tools.json_out()
     @cherrypy.tools.json_in()
-    def backend_present(self, *args, **kwargs):
+    def present(self, *args, **kwargs):
         return {}
 
 

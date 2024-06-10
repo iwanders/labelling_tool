@@ -141,7 +141,7 @@ impl Backend {
         let url = rq.url().to_string();
         let path = url.strip_prefix("/").unwrap();
         Ok(match path {
-            "backend/foo" => {
+            "present" => {
                 let f = Foo { z: 3 };
                 // let stats = self.stats.to_plain();
                 Some(
@@ -150,7 +150,7 @@ impl Backend {
                         .boxed(),
                 )
             }
-            "backend/sam_trigger" => {
+            "sam_trigger" => {
                 // Handle the preflight request here.
                 if rq.method() != &Method::Post {
                     return Ok(Some(

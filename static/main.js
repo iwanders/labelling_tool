@@ -79,7 +79,7 @@ Control.prototype.init = function(static_layer, edit_layer, sam_layer, map, proj
   self.sam_backend = false;
 
   // Then, check if the SAM backend is reachable:
-  $.getJSON(sam_backend_url() + "backend/foo", function( data ) {
+  $.getJSON(sam_backend_url() + "present", function( data ) {
     console.log("Found sam backend, setting it to true.");
     self.sam_backend = true;
     $("#sam_control").removeClass("gone");
@@ -880,13 +880,14 @@ Control.prototype.samTrigger = function()
         z.push({"x": nx, "y": ny, "category": "Include"});
       }
     }
-    fetch(sam_backend_url() + "backend/sam_trigger", {
+    fetch(sam_backend_url() + "sam_trigger", {
         method : "POST",
         body : JSON.stringify({
             points: z,
             image: image_bytes,
             threshold: self.sam_threshold,
-        })
+        }),
+        headers: new Headers({'content-type': 'application/json'}),
     }).then(
         response => response.json()
     ).then(d => {
