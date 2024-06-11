@@ -107,7 +107,7 @@ Control.prototype.init = function(static_layer, edit_layer, sam_layer, map, proj
   });
   $("#sam_opacity").change(function (event)
   {
-    console.log("Sam opacity change: ", event.target);
+    console.log("Sam opacity change: ", event.target, event.target.value / 100.0);
     sam_layer.setOpacity(event.target.value / 100.0);
   });
 
@@ -875,8 +875,10 @@ Control.prototype.samTrigger = function()
         }
         img_width = self.projection.getExtent()[2];
         img_height = self.projection.getExtent()[3];
-        let nx = p[0] / img_width;
-        let ny = 1.0 - (p[1] / img_height);
+        //  let nx = p[0] / img_width;
+        //  let ny = 1.0 - (p[1] / img_height);
+        let nx = p[0];
+        let ny = img_height - p[1];
         z.push({"x": nx, "y": ny, "category": "Include"});
       }
     }
@@ -891,7 +893,9 @@ Control.prototype.samTrigger = function()
     }).then(
         response => response.json()
     ).then(d => {
-        self.setSamImage("data:image/png;base64,"+d.image, img_width,img_height);
+        let img_payload = "data:image/png;base64,"+d.image;
+        console.log(img_payload);
+        self.setSamImage(img_payload, img_width, img_height);
     });
   });
 

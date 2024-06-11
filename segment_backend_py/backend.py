@@ -38,15 +38,22 @@ from io import BytesIO
 import torchvision.transforms.functional as transform
 import torchvision
 import hashlib
+import base64
+
 class Segmenter:
     def __init__(self, model_file):
         filename = os.path.basename(model_file)
-        model_type = SAM_LOOKUP[filename]
+        model_type = SAM_LOOKUP.get(filename, None)
+        if model_type is None:
+            raise Exception("Could not determine model type from the filename.")
         checkpoint = model_file
+        print(f"Determined model type: {model_type} from {filename}")
 
+        print("Loading model... ", end="", flush=True)
         self.sam = sam_model_registry[model_type](checkpoint=checkpoint)
         self.sam.to(device='cuda')
         self.predictor = SamPredictor(self.sam)
+        print(" done!")
 
         self.current_file_hash = None
 
@@ -58,6 +65,14 @@ class Segmenter:
     @staticmethod
     def hash_bytes(b):
         return hashlib.sha256(b).hexdigest()
+
+    @staticmethod
+    def mask_to_image(data):
+        data = data.squeeze()
+        size = data.shape[::-1]
+        databytes = np.packbits(data, axis=1)
+        return Image.frombytes(mode='1', size=size, data=databytes)
+
 
     def update_image(self, image_bytes):
         # Embeddings takes most of the time, so we check if we need to do it again, or whether
@@ -103,8 +118,68 @@ class Web:
             return {}
 
         input_json = cherrypy.request.json
+        """
+            #[derive(Deserialize, Serialize, Debug, Clone)]
+            struct SegmentPayload {
+                /// The points of interest to segment with.
+                points: Vec<segment::Point>,
+                /// The data representing the image (base64 string on the wire).
+                #[serde(deserialize_with = "deserialize_base64_string")]
+                #[serde(serialize_with = "serialize_base64_string")]
+                image: Vec<u8>,
+                /// The threshold to use.
+                #[serde(default)]
+                threshold: f64,
+            }
+            #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
+            pub struct Point {
+                /// The horizontal position in normalised coordinates [0, 1.0]
+                x: f64,
+                /// The vertical position in normalised coordinates [0, 1.0]
+                y: f64,
+                /// Wether this point depicts and include or an exclude.
+                category: Category,
+            }
+        """
+        # create the actual points to pass to predict.
+        #[(point, 1)]
+        points = []
+        for p in input_json["points"]:
+            foreground = 1 if p["category"] == "Include" else 0;
+            points.append(((p["x"], p["y"]), foreground))
+
+        print(points)
+
+        # Obtain the image bytes.
+        img_data = base64.b64decode(input_json["image"])
+
+        # Pass the img data to the segmenter
+        self.segmenter.update_image(img_data)
+
+        # Next, run the prediction
+        mask, scores, logits = self.segmenter.predict(points, multimask_output=False)
+
+        # Convert the mask to an image
+        mask = Segmenter.mask_to_image(mask)
+
+        # Now we have an image, we need to use that to mask in a transparent png.
+        color_of_mask = (255, 255, 255)
+        mask_image = Image.new("RGB", (mask.width, mask.height), color_of_mask)
+        mask_image.putalpha(mask)
+
+        # Convert the image to png bytes
+        buffer = BytesIO()
+        mask_image.save(buffer, format="png")
+        mask_png = buffer.getvalue()
+
+        with open("/tmp/pngmask.png", "wb") as f:
+            f.write(mask_png)
+        # Make that into a base64 encoded string
+        mask_png_b64 = base64.b64encode(mask_png)
         
-        return {}
+        input_json["image"] = mask_png_b64.decode("ascii")
+
+        return input_json
 
 
     @cherrypy.expose
@@ -137,6 +212,8 @@ def start_backend_server(http_port, http_host, model_pth):
 def run_host(args):
     start_backend_server(args.port, args.host, args.pth)
 
+
+
 def run_sam(args):
     segmenter = Segmenter(args.pth)
     img_data = Segmenter.read_file_from_disk(args.file)
@@ -144,14 +221,8 @@ def run_sam(args):
     point = tuple(int(v) for v in args.point.split(","))
     mask, scores, logits = segmenter.predict([(point, 1)], multimask_output=False)
     print(mask)
-
-    def img_frombytes(data):
-        size = data.shape[::-1]
-        databytes = np.packbits(data, axis=1)
-        return Image.frombytes(mode='1', size=size, data=databytes)
-
     print(mask.shape)
-    img = img_frombytes(mask.squeeze())
+    img = Segmenter.mask_to_image(mask)
     img.save(args.output)
 
 
@@ -177,7 +248,6 @@ if __name__ == "__main__":
                         help="The interface on which to listen.",
                         type=str,
                         default="127.0.0.1")
-    host_parser.add_argument('pth', help="Path to the pth.", type=str)
     host_parser.set_defaults(func=run_host)
 
     args = parser.parse_args()
