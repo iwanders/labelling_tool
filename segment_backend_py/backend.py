@@ -37,6 +37,7 @@ from PIL import Image
 from io import BytesIO
 import torchvision.transforms.functional as transform
 import torchvision
+import hashlib
 class Segmenter:
     def __init__(self, model_file):
         filename = os.path.basename(model_file)
@@ -47,18 +48,30 @@ class Segmenter:
         self.sam.to(device='cuda')
         self.predictor = SamPredictor(self.sam)
 
+        self.current_file_hash = None
+
     @staticmethod
     def read_file_from_disk(p):
         with open(p, "rb") as f:
             return f.read()
 
-    def update_image(self, image):
-        # The image comes in as a byte string... 
-        img_buffer = BytesIO(image)
+    @staticmethod
+    def hash_bytes(b):
+        return hashlib.sha256(b).hexdigest()
+
+    def update_image(self, image_bytes):
+        # Embeddings takes most of the time, so we check if we need to do it again, or whether
+        # this is still the active file.
+        new_hash = Segmenter.hash_bytes(image_bytes)
+        if self.current_file_hash == new_hash:
+            return
+        # The image comes in as a bytes, so we make it into an image here:
+        img_buffer = BytesIO(image_bytes)
         img = Image.open(img_buffer)
-        # img_tensor = transform.to_tensor(img)
-        # print(img_tensor.shape)
+        # Then pass that to the predictor.
         self.predictor.set_image(np.array(img))
+        # And update the current hash.
+        self.current_file_hash = new_hash
 
     def predict(self, points_with_labels, multimask_output=False):
         input_point = np.array([p[0] for p in points_with_labels])
@@ -136,12 +149,11 @@ def run_sam(args):
         size = data.shape[::-1]
         databytes = np.packbits(data, axis=1)
         return Image.frombytes(mode='1', size=size, data=databytes)
+
     print(mask.shape)
     img = img_frombytes(mask.squeeze())
     img.save(args.output)
 
-    # new_PIL_image = transform.to_pil_image(masks)
-    # new_PIL_image.save(args.output)
 
 
 if __name__ == "__main__":
