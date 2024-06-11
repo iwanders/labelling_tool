@@ -190,6 +190,10 @@ Control.prototype.init = function(static_layer, edit_layer, sam_layer, map, proj
 
       el.on('modifyend', function(e)
       {
+        e.features.forEach(function (el, i, arr)
+        {
+          self.triggerSamIfPointFeature(el);
+        });
         self.deferedSave();
       });
 
@@ -402,6 +406,9 @@ Control.prototype.setEntry = function (entry)
 
     // Load the features from the server.
     self.loadFeatures();
+
+    // Trigger sam if we have that.
+    self.samTrigger()
   });
 
 }
@@ -444,10 +451,12 @@ Control.prototype.setStaticImage = function(img_path)
   img.src = img_path;   // load the image, then when that's done update the map now that we know the resolution.
 };
 
-Control.prototype.setSamImage = function(img_data_url, width, height) {
+Control.prototype.setSamImage = function(img_data_url) {
   var self = this;
   //  console.log(img_data_url);
   //  console.log(self.projection, self.image_interpolation);
+  let width = self.projection.getExtent()[2];
+  let height = self.projection.getExtent()[3];
   console.log("Set sam layer source:",  width, height, self.projection);
   self.sam_layer.setSource(new Static({
     url: img_data_url,
@@ -605,6 +614,7 @@ Control.prototype.labelChange = function(direction)
   
   console.log("selecting labels", new_index);
   self.selectLabel(actual_labels[new_index]);
+  self.samTrigger();
 }
 
 
@@ -870,6 +880,9 @@ function arrayBufferToBase64( buffer ) {
 Control.prototype.samTrigger = function()
 {
   var self = this;
+  if (!self.haveSam()) {
+    return;
+  }
   // ehh, yeah, ehm, obtain self.current_img, then dispatch that, together with the points to the sam side?
   if (self.entry_image_url === undefined) {
     console.log("Can't trigger sam, no image url.");
@@ -916,7 +929,7 @@ Control.prototype.samTrigger = function()
           img_payload = EMPTY_LAYER;
         }
         //  console.log(img_payload);
-        self.setSamImage(img_payload, img_width, img_height);
+        self.setSamImage(img_payload);
     });
   });
 
