@@ -88,6 +88,9 @@ class Segmenter:
         # And update the current hash.
         self.current_file_hash = new_hash
 
+    def set_threshold(self, threshold):
+        self.predictor.model.mask_threshold = threshold
+
     def predict(self, points_with_labels, multimask_output=False):
         input_point = np.array([p[0] for p in points_with_labels])
         input_label = np.array([p[1] for p in points_with_labels])
@@ -156,6 +159,9 @@ class Web:
         # Pass the img data to the segmenter
         self.segmenter.update_image(img_data)
 
+        # Set the threshold
+        self.segmenter.set_threshold(input_json["threshold"])
+
         # Next, run the prediction
         mask, scores, logits = self.segmenter.predict(points, multimask_output=False)
 
@@ -171,6 +177,7 @@ class Web:
         buffer = BytesIO()
         mask_image.save(buffer, format="png")
         mask_png = buffer.getvalue()
+
 
         with open("/tmp/pngmask.png", "wb") as f:
             f.write(mask_png)

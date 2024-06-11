@@ -111,6 +111,7 @@ Control.prototype.init = function(static_layer, edit_layer, sam_layer, map, proj
     sam_layer.setOpacity(event.target.value / 100.0);
   });
 
+  self.sam_threshold = 0.0;
   $("#sam_threshold").change(function (event)
   {
     self.sam_threshold = event.target.value / 100.0;
