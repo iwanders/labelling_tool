@@ -118,6 +118,7 @@ Control.prototype.init = function(static_layer, edit_layer, sam_layer, map, proj
   {
     self.sam_threshold = event.target.value / 100.0;
     $("#sam_threshold_text").text(self.sam_threshold);
+    self.samTrigger();
   });
 
 
