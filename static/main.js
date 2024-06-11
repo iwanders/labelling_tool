@@ -591,6 +591,7 @@ Control.prototype.selectLabel = function(label) {
   // Make sure the layer represents this.
   self.updateLayers();
 
+  self.samTrigger();
 }
 
 Control.prototype.labelChange = function(direction)
@@ -614,7 +615,6 @@ Control.prototype.labelChange = function(direction)
   
   console.log("selecting labels", new_index);
   self.selectLabel(actual_labels[new_index]);
-  self.samTrigger();
 }
 
 
