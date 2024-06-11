@@ -269,10 +269,12 @@ Control.prototype.init = function(static_layer, edit_layer, sam_layer, map, proj
         if (e.action.type == "removefeature")
         {
           self.entry_features.add(e.action.feature);
+          self.triggerSamIfPointFeature(e.action.feature);
         }
         if (e.action.type == "addfeature")
         {
           self.entry_features.delete(e.action.feature);
+          self.triggerSamIfPointFeature(e.action.feature);
         }
       });
       el.on("redo", function(e)
@@ -281,10 +283,12 @@ Control.prototype.init = function(static_layer, edit_layer, sam_layer, map, proj
         if (e.action.type == "removefeature")
         {
           self.entry_features.delete(e.action.feature);
+          self.triggerSamIfPointFeature(e.action.feature);
         }
         if (e.action.type == "addfeature")
         {
           self.entry_features.add(e.action.feature);
+          self.triggerSamIfPointFeature(e.action.feature);
         }
       });
     }
