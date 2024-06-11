@@ -152,6 +152,11 @@ class Web:
             points.append(((p["x"], p["y"]), foreground))
 
         print(points)
+        if len(points) == 0:
+            # SAM fails with a backtrace in this case... so lets prevent that.
+            input_json["image"] = ""
+            return input_json
+            
 
         # Obtain the image bytes.
         img_data = base64.b64decode(input_json["image"])

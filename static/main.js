@@ -18,6 +18,8 @@
   SOFTWARE.
 */
 
+let EMPTY_LAYER = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+
 var Control = function ()
 {
 };
@@ -158,7 +160,9 @@ Control.prototype.init = function(static_layer, edit_layer, sam_layer, map, proj
         self.entry_features.add(e.feature);
         self.deferedSave();
         self.draw_active = false;
-        //console.log("Draw end", e);
+
+        // If a point was added AND we have the sam backend, trigger it.
+        self.triggerSamIfPointFeature(e.feature);
       });
 
       if ((el instanceof ol.interaction.Draw))
@@ -223,6 +227,7 @@ Control.prototype.init = function(static_layer, edit_layer, sam_layer, map, proj
           {
             self.entry_features.delete(el);
           }
+          self.triggerSamIfPointFeature(el);
         });
         self.deferedSave();
       });
@@ -347,6 +352,18 @@ Control.prototype.prevClick = function()
 {
   var self = this;
   self.setEntry(self.current - 1);
+};
+
+Control.prototype.haveSam = function()
+{
+  return this.sam_backend;
+};
+
+Control.prototype.triggerSamIfPointFeature = function(f)
+{
+  if ((f.getGeometry() instanceof ol.geom.Point) && this.haveSam()) {
+    this.samTrigger();
+  }
 };
 
 //! Get the current entry number as it would be on the backend.
@@ -858,8 +875,8 @@ Control.prototype.samTrigger = function()
     console.log("Can't trigger sam, no image url.");
     return;
   }
-  let img_width;
-  let img_height;
+  let img_width = self.projection.getExtent()[2];
+  let img_height = self.projection.getExtent()[3];
   fetch(self.entry_image_url).then(response => response.arrayBuffer()).then(buf => {
     //  console.log("buf:", buf);
     let image_bytes = arrayBufferToBase64(buf);
@@ -874,8 +891,7 @@ Control.prototype.samTrigger = function()
         if (label_type != self.entry_current_label) {
           continue;
         }
-        img_width = self.projection.getExtent()[2];
-        img_height = self.projection.getExtent()[3];
+
         //  let nx = p[0] / img_width;
         //  let ny = 1.0 - (p[1] / img_height);
         let nx = p[0];
@@ -895,7 +911,11 @@ Control.prototype.samTrigger = function()
         response => response.json()
     ).then(d => {
         let img_payload = "data:image/png;base64,"+d.image;
-        console.log(img_payload);
+        if (d.image.length == 0) {
+          console.log("Setting empty layer");
+          img_payload = EMPTY_LAYER;
+        }
+        //  console.log(img_payload);
         self.setSamImage(img_payload, img_width, img_height);
     });
   });

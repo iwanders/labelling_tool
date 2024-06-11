@@ -46,7 +46,10 @@ Help
 
 Segment Anything
 ----------------
-The `segment_backend` directory holds a simple backend server that runs the Segment Anything model.
+The Python segment anything backend uses the official `segment_anything` package, only positive points can be added.
+
+
+The `segment_backend_rs` directory holds a simple backend server that runs the Segment Anything model through candle, this currently produces different results than the python implementation.
 
 Start it with `cargo r --features=cuda --release`, after which segmentation masks can be created from the points in the current category.
 
