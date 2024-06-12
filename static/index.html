@@ -137,7 +137,7 @@
               interpolate: false,
             }),
           });
-      var sam_layer = new ImageLayer({
+      var sam_mask_layer = new ImageLayer({
             source: new Static({
               url: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
               projection: projection,
@@ -145,12 +145,12 @@
               interpolate: false,
             }),
           });
-      sam_layer.setOpacity(0.5);
+      sam_mask_layer.setOpacity(0.5);
       var edit_layer = new ol.layer.Vector( { source: new ol.source.Vector() })
       let zoomFactorDelta = 2;
       var map = new Map({
         layers: [
-          static_layer, sam_layer, edit_layer, 
+          static_layer, sam_mask_layer, edit_layer, 
         ],
         target: 'map',
         view: new View({
@@ -206,6 +206,23 @@
           Transform: {title:"Transform (T)"},
         }});
       map.addControl(edit);
+      /*
+      var edit_sam = new ol.control.EditBar({
+        source: edit_layer.getSource(),
+        interactions:{
+          DrawPoint:true,
+          DrawLine:false,
+          Offset:false,
+          Split:false,
+          DrawHole:false,
+          DrawRegular: false,
+          Select: false,
+          DrawPolygon: false,
+          Transform: false,
+        }});
+      edit.setPosition("top-left");
+      map.addControl(edit);
+      */
 
       window.document.addEventListener('keydown', function(event) {
         if (event.key === 'Escape' || event.key === "s") {
@@ -268,7 +285,7 @@
       edit.addControl(bar);
 
       var control = new Control();
-      control.init(static_layer, edit_layer, sam_layer, map, projection, undoInteraction);
+      control.init(static_layer, edit_layer, sam_mask_layer, map, projection, undoInteraction);
 
       // $(".ol-drawpolygon.ol-button button")[0].click(); // Default selected tool is draw polygon.
     </script>

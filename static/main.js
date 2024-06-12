@@ -34,12 +34,12 @@ let sam_backend_url  = () => {
 /**
  * @brief init function that registers all callbacks and initialises state variables.
  */
-Control.prototype.init = function(static_layer, edit_layer, sam_layer, map, projection, undo_interaction)
+Control.prototype.init = function(static_layer, edit_layer, sam_mask_layer, map, projection, undo_interaction)
 {
   var self = this;
   this.static_layer = static_layer;
   this.edit_layer = edit_layer;
-  this.sam_layer = sam_layer;
+  this.sam_mask_layer = sam_mask_layer;
   this.map = map;
   this.projection = projection;
   this.undo_interaction = undo_interaction;
@@ -110,7 +110,7 @@ Control.prototype.init = function(static_layer, edit_layer, sam_layer, map, proj
   $("#sam_opacity").change(function (event)
   {
     console.log("Sam opacity change: ", event.target, event.target.value / 100.0);
-    sam_layer.setOpacity(event.target.value / 100.0);
+    sam_mask_layer.setOpacity(event.target.value / 100.0);
   });
 
   self.sam_threshold = 0.0;
@@ -463,7 +463,7 @@ Control.prototype.setSamImage = function(img_data_url) {
   let width = self.projection.getExtent()[2];
   let height = self.projection.getExtent()[3];
   console.log("Set sam layer source:",  width, height, self.projection);
-  self.sam_layer.setSource(new Static({
+  self.sam_mask_layer.setSource(new Static({
     url: img_data_url,
     projection: self.projection,
     imageExtent: [0, 0, width, height],
