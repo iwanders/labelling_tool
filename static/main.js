@@ -954,21 +954,25 @@ Control.prototype.samTrigger = function()
     let image_bytes = arrayBufferToBase64(buf);
     let z = [];
     // Collect the points of the currently selected category.
-    for (let f of self.entry_features) {
+    for (let f of self.sam_point_features) {
       //  console.log(f);
       let geom = f.getGeometry();
       if (f.getGeometry() instanceof ol.geom.Point) {
         let p = geom.getFirstCoordinate();
-        let label_type = f.getProperties()["label"];
-        if (label_type != self.entry_current_label) {
-          continue;
+        //  let label_type = f.getProperties()["label"];
+        //  if (label_type != self.entry_current_label) {
+          //  continue;
+        //  }
+        let category = "Include";
+        if (f.get("sam_negative")) {
+          category = "Exclude";
         }
 
         //  let nx = p[0] / img_width;
         //  let ny = 1.0 - (p[1] / img_height);
         let nx = p[0];
         let ny = img_height - p[1];
-        z.push({"x": nx, "y": ny, "category": "Include"});
+        z.push({"x": nx, "y": ny, "category": category});
       }
     }
     fetch(sam_backend_url() + "sam_trigger", {
