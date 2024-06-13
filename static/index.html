@@ -98,6 +98,7 @@
       opacity<input type="range" id="sam_opacity" name="sam_opacity" min="0" max="100" value="50" />
       threshold:<input type="range" id="sam_threshold" name="sam_threshold" min="0" max="1000" value="0" />
       <span id="sam_threshold_text">0.0</span>
+      <label for="sam_foreground">foreground (g): </label><input type="checkbox" id="sam_foreground" name="sam_foreground" checked />
     </div>
 
     <div id="map" class="map"></div>
@@ -193,7 +194,7 @@
       var edit_bar = new ol.control.EditBar({
         source: edit_layer.getSource(),
         interactions:{
-          DrawPoint:true,
+          DrawPoint:{title: "Point (F)"},
           DrawLine:false,
           Offset:false,
           Split:false,
@@ -220,6 +221,9 @@
         }
         if (event.key === 'f') {
           edit.getInteraction('DrawPoint').setActive(true);
+        }
+        if (event.key === 'g') {
+          $("#sam_foreground").click();
         }
         if (event.key === "a") {
           $("#info_prev").click();
@@ -267,15 +271,6 @@
         ]
       });
       edit_bar.addControl(bar);
-
-
-      document.addEventListener('click', function (e) {
-        map.set("previous_click_is_rightclick", e.which == 3);
-      });
-      document.addEventListener('contextmenu', function (e) {
-        map.set("previous_click_is_rightclick", e.which == 3);
-      });
-
 
       var control = new Control();
       control.init(static_layer, edit_layer, sam_mask_layer, map, edit_bar, projection, undoInteraction);

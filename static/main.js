@@ -123,6 +123,12 @@ Control.prototype.init = function(static_layer, edit_layer, sam_mask_layer, map,
     self.samTrigger();
   });
 
+  self.sam_foreground = true;
+  $("#sam_foreground").change(function (event)
+  {
+    self.sam_foreground = event.target.checked;
+  });
+
 
 
   $("#label_prev").click(function (event)
@@ -159,8 +165,7 @@ Control.prototype.init = function(static_layer, edit_layer, sam_mask_layer, map,
       el.on('drawend', function(e) {
 
         if (e.feature.getGeometry() instanceof ol.geom.Point) {
-          console.log("Adding point, previous is:", e.target.getMap().get("previous_click_is_rightclick"));
-          let negative = e.target.getMap().get("previous_click_is_rightclick");
+          let negative = !self.sam_foreground;
           e.feature.set("sam_negative", negative);
           self.sam_point_features.add(e.feature);
           // If a point was added AND we have the sam backend, trigger it.
