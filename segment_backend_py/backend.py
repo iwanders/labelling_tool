@@ -39,6 +39,8 @@ import torchvision.transforms.functional as transform
 import torchvision
 import hashlib
 import base64
+import cv2
+
 
 class Segmenter:
     def __init__(self, model_file):
@@ -80,11 +82,18 @@ class Segmenter:
         new_hash = Segmenter.hash_bytes(image_bytes)
         if self.current_file_hash == new_hash:
             return
+
         # The image comes in as a bytes, so we make it into an image here:
         img_buffer = BytesIO(image_bytes)
         img = Image.open(img_buffer)
+
+        # Ensure the image is rgb, otherwise the predictor gives odd errors;
+        # https://github.com/facebookresearch/segment-anything/issues/413
+        img = img.convert('RGB')
+
         # Then pass that to the predictor.
         self.predictor.set_image(np.array(img))
+
         # And update the current hash.
         self.current_file_hash = new_hash
 
@@ -101,7 +110,31 @@ class Segmenter:
         )
         return (masks, scores, logits)
 
-        
+    
+    @staticmethod
+    def mask_to_bw_img(mask):
+        return mask.astype(np.uint8).squeeze()
+
+    @staticmethod
+    def create_contours(mask):
+        print(mask)
+        print(type(mask))
+        bw_img = Segmenter.mask_to_bw_img(mask)
+        print(bw_img.shape)
+        print("contour start")
+        # contours, other = cv2.findContours(bw_img, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        contours, other = cv2.findContours(bw_img, cv2.RETR_TREE, cv2.CHAIN_APPROX_TC89_L1)
+        # contours, other = cv2.findContours(bw_img, cv2.RETR_TREE, cv2.CHAIN_APPROX_TC89_KCOS)
+        print(contours)
+        print(other)
+        print("contour end")
+        for i, contour in enumerate(contours):
+            area = cv2.contourArea(contour)
+            print(f"Contour: {area}: {contour}")
+            blank_image = np.zeros(bw_img.shape, np.uint8)
+            cv2.fillPoly(blank_image, pts=[contour], color= (255,255,255))
+            # plt.imshow(blank_image)
+            cv2.imwrite(f"/tmp/contour_{i}.png", blank_image)
     
 
 class Web:
@@ -170,6 +203,9 @@ class Web:
         # Next, run the prediction
         mask, scores, logits = self.segmenter.predict(points, multimask_output=False)
 
+        # Create contours from this mask.
+        contours = Segmenter.create_contours(mask)
+
         # Convert the mask to an image
         mask = Segmenter.mask_to_image(mask)
 
@@ -232,10 +268,10 @@ def run_sam(args):
     segmenter.update_image(img_data)
     point = tuple(int(v) for v in args.point.split(","))
     mask, scores, logits = segmenter.predict([(point, 1)], multimask_output=False)
-    print(mask)
-    print(mask.shape)
+    contour = Segmenter.create_contours(mask)
     img = Segmenter.mask_to_image(mask)
     img.save(args.output)
+
 
 
 
