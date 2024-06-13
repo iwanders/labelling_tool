@@ -83,13 +83,6 @@
       <button id="interpolate_button"  class="button">interpolate: false
       </button>
 
-      <span id="sam_control" class="sam_control gone">
-        <button id="sam_trigger"  class="button">trigger</button>
-        opacity<input type="range" id="sam_opacity" name="sam_opacity" min="0" max="100" value="50" />
-        threshold:<input type="range" id="sam_threshold" name="sam_threshold" min="0" max="1000" value="0" />
-        <span id="sam_threshold_text">0.0</span>
-      </span>
-
       <span style="float: right">
         <button id="label_prev" class="button"><i class="fa fa-arrow-left"></i> label (q) </button>
         <button id="label_next" class="button"><i class="fa fa-arrow-right"></i> label (e) </button>
@@ -99,6 +92,14 @@
         </span>
       </span>
     </div>
+    <div id="sam_control" class="sam_control gone">
+      SAM
+      <button id="sam_trigger"  class="button">trigger</button>
+      opacity<input type="range" id="sam_opacity" name="sam_opacity" min="0" max="100" value="50" />
+      threshold:<input type="range" id="sam_threshold" name="sam_threshold" min="0" max="1000" value="0" />
+      <span id="sam_threshold_text">0.0</span>
+    </div>
+
     <div id="map" class="map"></div>
     <span id="entry_filename">-</span>
   </div>
@@ -150,7 +151,7 @@
       let zoomFactorDelta = 2;
       var map = new Map({
         layers: [
-          static_layer, sam_mask_layer, edit_layer, 
+          static_layer, sam_mask_layer, edit_layer
         ],
         target: 'map',
         view: new View({
@@ -180,9 +181,6 @@
         condition: function (mapBrowserEvent) {
           let middle_mouse = mapBrowserEvent.originalEvent.which == 2 || mapBrowserEvent.originalEvent.button == 4 ;
           let primary_action =  mapBrowserEvent.originalEvent.isPrimary;
-          // console.log("condition:", mapBrowserEvent.originalEvent);
-          // console.log("  middle_mouse:", middle_mouse);
-          // console.log("  primary_action:", primary_action);
           return (
             primary_action && !middle_mouse
           );
@@ -192,7 +190,7 @@
       
 
       // Add the editbar
-      var edit = new ol.control.EditBar({
+      var edit_bar = new ol.control.EditBar({
         source: edit_layer.getSource(),
         interactions:{
           DrawPoint:true,
@@ -205,24 +203,7 @@
           DrawPolygon: drawPolygon,
           Transform: {title:"Transform (T)"},
         }});
-      map.addControl(edit);
-      /*
-      var edit_sam = new ol.control.EditBar({
-        source: edit_layer.getSource(),
-        interactions:{
-          DrawPoint:true,
-          DrawLine:false,
-          Offset:false,
-          Split:false,
-          DrawHole:false,
-          DrawRegular: false,
-          Select: false,
-          DrawPolygon: false,
-          Transform: false,
-        }});
-      edit.setPosition("top-left");
-      map.addControl(edit);
-      */
+      map.addControl(edit_bar);
 
       window.document.addEventListener('keydown', function(event) {
         if (event.key === 'Escape' || event.key === "s") {
@@ -236,6 +217,9 @@
         }
         if (event.key === 'w') {
           edit.getInteraction('DrawPolygon').setActive(true);
+        }
+        if (event.key === 'f') {
+          edit.getInteraction('DrawPoint').setActive(true);
         }
         if (event.key === "a") {
           $("#info_prev").click();
@@ -257,8 +241,8 @@
       // Prevent selection of a deleted feature
       undoInteraction.on('undo', function(e) {
         if (e.action.type === 'addfeature') {
-          edit.getInteraction('Select').getFeatures().clear();
-          edit.getInteraction('Transform').select();
+          edit_bar.getInteraction('Select').getFeatures().clear();
+          edit_bar.getInteraction('Transform').select();
         }
       });
 
@@ -282,10 +266,19 @@
           })
         ]
       });
-      edit.addControl(bar);
+      edit_bar.addControl(bar);
+
+
+      document.addEventListener('click', function (e) {
+        map.set("previous_click_is_rightclick", e.which == 3);
+      });
+      document.addEventListener('contextmenu', function (e) {
+        map.set("previous_click_is_rightclick", e.which == 3);
+      });
+
 
       var control = new Control();
-      control.init(static_layer, edit_layer, sam_mask_layer, map, projection, undoInteraction);
+      control.init(static_layer, edit_layer, sam_mask_layer, map, edit_bar, projection, undoInteraction);
 
       // $(".ol-drawpolygon.ol-button button")[0].click(); // Default selected tool is draw polygon.
     </script>

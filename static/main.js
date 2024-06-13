@@ -34,7 +34,7 @@ let sam_backend_url  = () => {
 /**
  * @brief init function that registers all callbacks and initialises state variables.
  */
-Control.prototype.init = function(static_layer, edit_layer, sam_mask_layer, map, projection, undo_interaction)
+Control.prototype.init = function(static_layer, edit_layer, sam_mask_layer, map, edit_bar, projection, undo_interaction)
 {
   var self = this;
   this.static_layer = static_layer;
@@ -69,6 +69,8 @@ Control.prototype.init = function(static_layer, edit_layer, sam_mask_layer, map,
   self.entry_current_label = "unknown";  // the current label we'll add.
   self.entry_labels = {};    // holds all labels that we know for this entry.
   self.entry_features = new Set([]);  // always holds the current features.
+
+  self.sam_point_features = new Set([]);
 
   // Retrieve the max entry index from the backend.
   $.getJSON("info_data_extent", function( data ) {
@@ -155,15 +157,22 @@ Control.prototype.init = function(static_layer, edit_layer, sam_mask_layer, map,
     {
       // Need to hook draw end to set the label.
       el.on('drawend', function(e) {
-        e.feature.setProperties({
-          'label': self.entry_current_label
-        })
-        self.entry_features.add(e.feature);
-        self.deferedSave();
-        self.draw_active = false;
 
-        // If a point was added AND we have the sam backend, trigger it.
-        self.triggerSamIfPointFeature(e.feature);
+        if (e.feature.getGeometry() instanceof ol.geom.Point) {
+          console.log("Adding point, previous is:", e.target.getMap().get("previous_click_is_rightclick"));
+          let negative = e.target.getMap().get("previous_click_is_rightclick");
+          e.feature.set("sam_negative", negative);
+          self.sam_point_features.add(e.feature);
+          // If a point was added AND we have the sam backend, trigger it.
+          self.triggerSamIfPointFeature(e.feature);
+        } else {
+          e.feature.setProperties({
+            'label': self.entry_current_label
+          })
+          self.entry_features.add(e.feature);
+          self.deferedSave();
+        }
+        self.draw_active = false;
       });
 
       if ((el instanceof ol.interaction.Draw))
@@ -180,6 +189,7 @@ Control.prototype.init = function(static_layer, edit_layer, sam_mask_layer, map,
           to_be_style.getFill().getColor()[3] = 0.05;
           return to_be_style;
         });
+
       }
     }
 
@@ -231,6 +241,9 @@ Control.prototype.init = function(static_layer, edit_layer, sam_mask_layer, map,
           if (self.entry_features.has(el))
           {
             self.entry_features.delete(el);
+          }
+          if (self.sam_point_features.has(el)) {
+            self.sam_point_features.delete(el);
           }
           self.triggerSamIfPointFeature(el);
         });
@@ -643,6 +656,12 @@ Control.prototype.updateLayers = function()
       self.edit_layer.getSource().addFeature(feature);
     }
   }
+  // Always add the sam features
+  for (let feature of self.sam_point_features)
+  {
+    console.log("feature:", feature);
+    self.edit_layer.getSource().addFeature(feature);
+  }
 }
 
 /**
@@ -692,6 +711,12 @@ Control.prototype.labelStyle = function(label_type)
       }),
       fill: new ol.style.Fill({
         color: 'rgba(128, 128, 128, 0.1)'
+      }),
+      image: new ol.style.Circle({
+          radius: 3,
+          fill: new ol.style.Fill({
+            color: point_color,
+          })
       })
     });
   }
@@ -705,7 +730,31 @@ Control.prototype.layerStyleFunction = function(feature, view_res)
   var self = this;
 
   // Try to retrieve the color.
-  var label_type = feature.getProperties()["label"];
+  let props = feature.getProperties();
+  var label_type = props["label"];
+  if (props["sam_negative"] !== undefined) {
+    let color = "white";
+    if (props["sam_negative"]) {
+      color = "black";
+    }
+    // It is a point.
+    return new ol.style.Style({
+      stroke: new ol.style.Stroke({
+        color: color,
+        width: 3
+      }),
+      fill: new ol.style.Fill({
+        color: color
+      }),
+      image: new ol.style.Circle({
+          radius: 3,
+          fill: new ol.style.Fill({
+            color: color,
+          })
+      })
+    });
+  }
+  
   return self.labelStyle(label_type);
 }
 
