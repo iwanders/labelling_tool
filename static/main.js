@@ -427,11 +427,17 @@ Control.prototype.setEntry = function (entry)
     // Update the label handler.
     self.updateAvailableLabels();
 
+
+    // Trigger sam if we have that.
+    //  self.samTrigger();
+    // Clear the sam layer.
+    self.sam_point_features = new Set([]);
+
     // Load the features from the server.
     self.loadFeatures();
 
-    // Trigger sam if we have that.
-    self.samTrigger()
+
+
   });
 
 }
