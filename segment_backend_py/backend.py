@@ -116,21 +116,33 @@ class Segmenter:
         return mask.astype(np.uint8).squeeze()
 
     @staticmethod
-    def create_contours(mask):
+    def create_contours(mask, area_ratio_minimum = 0.0):
         print(mask)
         print(type(mask))
+        total_area = mask.shape[0] * mask.shape[1]
         bw_img = Segmenter.mask_to_bw_img(mask)
         print(bw_img.shape)
         print("contour start")
         # contours, other = cv2.findContours(bw_img, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-        contours, other = cv2.findContours(bw_img, cv2.RETR_TREE, cv2.CHAIN_APPROX_TC89_L1)
+        contours, hierarchy = cv2.findContours(bw_img, cv2.RETR_TREE, cv2.CHAIN_APPROX_TC89_L1)
         # contours, other = cv2.findContours(bw_img, cv2.RETR_TREE, cv2.CHAIN_APPROX_TC89_KCOS)
+        hierarchy = hierarchy.squeeze()
         print(contours)
-        print(other)
+        print(hierarchy)
         print("contour end")
         for i, contour in enumerate(contours):
+            hierarchy_info = hierarchy[i]
+            next_i, previous_i, child_i, parent_i = hierarchy_info
+            # we are only interested in contours at the root.
+            if (parent_i != -1):
+                continue
+            print(hierarchy_info)
+
             area = cv2.contourArea(contour)
-            print(f"Contour: {area}: {contour}")
+            if area < (total_area * area_ratio_minimum):
+                continue
+            print(f"{i}: {area} ")
+            # print(f"Contour: {area}: {contour}")
             blank_image = np.zeros(bw_img.shape, np.uint8)
             cv2.fillPoly(blank_image, pts=[contour], color= (255,255,255))
             # plt.imshow(blank_image)
@@ -266,9 +278,9 @@ def run_sam(args):
     segmenter = Segmenter(args.pth)
     img_data = Segmenter.read_file_from_disk(args.file)
     segmenter.update_image(img_data)
-    point = tuple(int(v) for v in args.point.split(","))
-    mask, scores, logits = segmenter.predict([(point, 1)], multimask_output=False)
-    contour = Segmenter.create_contours(mask)
+    points = [(tuple(int(v) for v in p.split(",")), 1) for p in args.point]
+    mask, scores, logits = segmenter.predict(points, multimask_output=False)
+    contour = Segmenter.create_contours(mask, area_ratio_minimum=args.ratio)
     img = Segmenter.mask_to_image(mask)
     img.save(args.output)
 
@@ -283,8 +295,9 @@ if __name__ == "__main__":
 
     sam_parser = subparsers.add_parser('sam')
     sam_parser.add_argument('file', help="The image file to open.")
-    sam_parser.add_argument('point', help="The x,y of the point we're working on.")
+    sam_parser.add_argument('point', help="The x,y of the point we're working on.", nargs="+")
     sam_parser.add_argument('--output', help="The output file, defaults to %(default)s.", default="/tmp/mask.png")
+    sam_parser.add_argument('--ratio', type=float, help="The minimum ratio of the total surface area. Defaults to %(default)s.", default=0.0)
     sam_parser.set_defaults(func=run_sam)
 
     host_parser = subparsers.add_parser('host')
