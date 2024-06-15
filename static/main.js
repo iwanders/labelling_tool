@@ -522,11 +522,17 @@ Control.prototype.setSamContours = function(contours) {
     let area = area_contour[0];
     let contour = area_contour[1];
     console.log("contour", contour);
-    let poly = new ol.geom.Polygon(contour, "Polygon");
-    let feature = new ol.Feature({
-      geometry: poly,
-    });
-    feature.setId(counter);
+
+    let geojson_object  = {
+    'type': 'Feature',
+    'geometry': {
+      'type': 'Polygon',
+      'coordinates': [
+        contour
+      ],
+    },
+    };
+    let feature = new ol.format.GeoJSON().readFeature(geojson_object);
     features_to_add.push(feature);
     console.log("counter", counter);
     console.log("feature", feature);
