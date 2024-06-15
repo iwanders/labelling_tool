@@ -72,6 +72,7 @@ Control.prototype.init = function(static_layer, edit_layer, sam_mask_layer,sam_v
   self.entry_features = new Set([]);  // always holds the current features.
 
   self.sam_point_features = new Set([]);
+  self.sam_contours = [];
 
   // Retrieve the max entry index from the backend.
   $.getJSON("info_data_extent", function( data ) {
@@ -105,9 +106,9 @@ Control.prototype.init = function(static_layer, edit_layer, sam_mask_layer,sam_v
   });
 
   // Bind sam trigger
-  $("#sam_trigger").click(function (event)
+  $("#sam_convert").click(function (event)
   {
-    self.samTrigger();
+    self.samConvert();
     event.preventDefault();
   });
   $("#sam_opacity").change(function (event)
@@ -513,7 +514,7 @@ Control.prototype.setSamContours = function(contours) {
   var self = this;
   let source = self.sam_vector_layer.getSource();
   source.clear();
-  console.log("source:", source);
+  //  console.log("source:", source);
   // Add the entries to the layer that we are interested in.
   let counter = 0;
   let features_to_add = [];
@@ -521,7 +522,7 @@ Control.prototype.setSamContours = function(contours) {
   {
     let area = area_contour[0];
     let contour = area_contour[1];
-    console.log("contour", contour);
+    //  console.log("contour", contour);
 
     let geojson_object  = {
     'type': 'Feature',
@@ -534,9 +535,9 @@ Control.prototype.setSamContours = function(contours) {
     };
     let feature = new ol.format.GeoJSON().readFeature(geojson_object);
     features_to_add.push(feature);
-    console.log("counter", counter);
-    console.log("feature", feature);
-    console.log("feature.getId()", feature.getId());
+    //  console.log("counter", counter);
+    //  console.log("feature", feature);
+    //  console.log("feature.getId()", feature.getId());
     counter += 1;
     if (counter >= self.sam_accept_count) {
       break;
@@ -544,16 +545,30 @@ Control.prototype.setSamContours = function(contours) {
   }
   source.addFeatures(features_to_add);
   //  self.edit_layer.getSource().addFeatures(features_to_add);
-  console.log("source.getFeatures()", self.sam_vector_layer.getSource().getFeatures());
+  //  console.log("source.getFeatures()", self.sam_vector_layer.getSource().getFeatures());
   //  console.log("sam_vector_layer.getFeatures()", self.sam_vector_layer.getFeatures());
 
+
+  self.sam_contours = [];
+  for (let feature of features_to_add) {
+    self.sam_contours.push(feature);
+  }
 
   this.sam_vector_layer.setStyle({
     "fill-color": "yellow",
     "stroke-color": "black",
     "stroke-width": 1
   });
+}
 
+Control.prototype.samConvert = function () {
+  var self = this;
+  for (let feature of self.sam_contours) {
+    feature.set("label", self.entry_current_label);
+    var label_type = feature.getProperties()["label"];
+    self.edit_layer.getSource().addFeature(feature);
+  }
+  self.sam_contours = [];
 }
 
 /**
