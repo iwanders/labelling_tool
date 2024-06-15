@@ -88,7 +88,7 @@ Control.prototype.init = function(static_layer, edit_layer, sam_mask_layer,sam_v
     console.log("Found sam backend, setting it to true.");
     self.sam_backend = true;
     $("#sam_control").removeClass("gone");
-    self.samTrigger();
+    //  self.samTrigger();
   });
 
   // Bind forwards / backwards buttons.
@@ -144,7 +144,6 @@ Control.prototype.init = function(static_layer, edit_layer, sam_mask_layer,sam_v
     console.log("Sam sam_vector_layer change: ", event.target, event.target.value / 100.0);
     sam_vector_layer.setOpacity(event.target.value / 100.0);
   });
-
 
 
 
@@ -522,7 +521,8 @@ Control.prototype.setSamContours = function(contours) {
   {
     let area = area_contour[0];
     let contour = area_contour[1];
-    let poly = new ol.geom.Polygon([contour], "Polygon");
+    console.log("contour", contour);
+    let poly = new ol.geom.Polygon(contour, "Polygon");
     let feature = new ol.Feature({
       geometry: poly,
     });
@@ -537,31 +537,17 @@ Control.prototype.setSamContours = function(contours) {
     }
   }
   source.addFeatures(features_to_add);
+  //  self.edit_layer.getSource().addFeatures(features_to_add);
   console.log("source.getFeatures()", self.sam_vector_layer.getSource().getFeatures());
+  //  console.log("sam_vector_layer.getFeatures()", self.sam_vector_layer.getFeatures());
 
-  source.refresh({force:true});
-  self.sam_vector_layer.changed();
+  //  source.refresh({force:true});
+  //  self.sam_vector_layer.changed();
 
-  this.sam_vector_layer.setStyle(function(feature, view_res)
-  {
-    console.log("Getting style for", feature);
-    var color = ol.color.asArray("#FF00FF");
-    return new ol.style.Style({
-      stroke: new ol.style.Stroke({
-        color: color,
-        width: 3
-      }),
-      fill: new ol.style.Fill({
-        color: color
-      }),
-      image: new ol.style.Circle({
-          radius: 3,
-          fill: new ol.style.Fill({
-            color: color,
-          })
-      })
-    })
-  });
+  this.sam_vector_layer.setStyle({
+  "fill-color": "yellow",
+  "stroke-color": "black",
+  "stroke-width": 4});
 
 }
 
