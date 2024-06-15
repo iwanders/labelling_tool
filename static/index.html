@@ -95,9 +95,10 @@
     <div id="sam_control" class="sam_control gone">
       SAM
       <button id="sam_trigger"  class="button">trigger</button>
-      opacity<input type="range" id="sam_opacity" name="sam_opacity" min="0" max="100" value="50" />
+      mask opacity<input type="range" id="sam_opacity" name="sam_opacity" min="0" max="100" value="50" />
+      poly opacity<input type="range" id="sam_vector_opacity" name="sam_vector_opacity" min="0" max="100" value="100" />
       threshold:<input type="range" id="sam_threshold" name="sam_threshold" min="0" max="1000" value="0" /><span id="sam_threshold_text">0.0</span>
-      area ratio:<input type="range" id="sam_area_ratio" name="sam_area_ratio" min="0" max="1000" value="10" /><span id="sam_area_ratio_text">0.01</span>
+      accept count:<input type="range" id="sam_accept_count" name="sam_accept_count" min="1" max="10" value="10" /><span id="sam_accept_count_text">10</span>
       <label for="sam_foreground">foreground (g): </label><input type="checkbox" id="sam_foreground" name="sam_foreground" checked />
     </div>
 
@@ -149,11 +150,11 @@
           });
       sam_mask_layer.setOpacity(0.5);
       var edit_layer = new ol.layer.Vector( { source: new ol.source.Vector() });
-      var sam_vector_layer = new ol.layer.Vector( { source: new ol.source.Vector() });
+      var sam_vector_layer = new ol.layer.Vector( { source: new ol.source.Vector({features:[]}) });
       let zoomFactorDelta = 2;
       var map = new Map({
         layers: [
-          static_layer, sam_mask_layer, sam_vector_layer, edit_layer, 
+          static_layer, sam_mask_layer, edit_layer, sam_vector_layer, 
         ],
         target: 'map',
         view: new View({
@@ -176,6 +177,7 @@
           new ol.interaction.MouseWheelZoom({duration: 10, timeout:10})
         ]),
       });
+
 
       let drawPolygon = new ol.interaction.Draw({
         type: 'Polygon',

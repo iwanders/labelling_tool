@@ -116,12 +116,12 @@ Control.prototype.init = function(static_layer, edit_layer, sam_mask_layer,sam_v
     sam_mask_layer.setOpacity(event.target.value / 100.0);
   });
 
-  self.sam_area_ratio = 0.01;
-  $("#sam_area_ratio").change(function (event)
+  self.sam_accept_count = 10;
+  $("#sam_accept_count").change(function (event)
   {
-    console.log("Sam sam_area_ratio: ", event.target, event.target.value / 1000.0);
-    self.sam_area_ratio = event.target.value / 1000.0;
-    $("#sam_area_ratio_text").text(self.sam_area_ratio);
+    console.log("Sam sam_accept_count: ", event.target, event.target.value / 1000.0);
+    self.sam_accept_count = event.target.value;
+    $("#sam_accept_count_text").text(self.sam_accept_count);
   });
 
   self.sam_threshold = 0.0;
@@ -137,6 +137,14 @@ Control.prototype.init = function(static_layer, edit_layer, sam_mask_layer,sam_v
   {
     self.sam_foreground = event.target.checked;
   });
+
+  sam_vector_layer.setOpacity(1.0);
+  $("#sam_vector_opacity").change(function (event)
+  {
+    console.log("Sam sam_vector_layer change: ", event.target, event.target.value / 100.0);
+    sam_vector_layer.setOpacity(event.target.value / 100.0);
+  });
+
 
 
 
@@ -504,19 +512,39 @@ Control.prototype.setSamImage = function(img_data_url) {
 
 Control.prototype.setSamContours = function(contours) {
   var self = this;
-  self.sam_vector_layer.getSource().clear();
-  console.log("contours", contours);
+  let source = self.sam_vector_layer.getSource();
+  source.clear();
+  console.log("source:", source);
   // Add the entries to the layer that we are interested in.
-  for (let contour of contours)
+  let counter = 0;
+  let features_to_add = [];
+  for (let area_contour of contours)
   {
-    let poly = new ol.geom.Polygon(contour, "Polygon");
+    let area = area_contour[0];
+    let contour = area_contour[1];
+    let poly = new ol.geom.Polygon([contour], "Polygon");
     let feature = new ol.Feature({
-      geometry: poly
+      geometry: poly,
     });
-    self.sam_vector_layer.getSource().addFeature(feature);
+    feature.setId(counter);
+    features_to_add.push(feature);
+    console.log("counter", counter);
+    console.log("feature", feature);
+    console.log("feature.getId()", feature.getId());
+    counter += 1;
+    if (counter >= self.sam_accept_count) {
+      break;
+    }
   }
-  self.sam_vector_layer.setStyle(function(feature, view_res)
+  source.addFeatures(features_to_add);
+  console.log("source.getFeatures()", self.sam_vector_layer.getSource().getFeatures());
+
+  source.refresh({force:true});
+  self.sam_vector_layer.changed();
+
+  this.sam_vector_layer.setStyle(function(feature, view_res)
   {
+    console.log("Getting style for", feature);
     var color = ol.color.asArray("#FF00FF");
     return new ol.style.Style({
       stroke: new ol.style.Stroke({
@@ -1029,7 +1057,6 @@ Control.prototype.samTrigger = function()
             points: z,
             image: image_bytes,
             threshold: self.sam_threshold,
-            area_ratio: self.sam_area_ratio,
         }),
         headers: new Headers({'content-type': 'application/json'}),
     }).then(

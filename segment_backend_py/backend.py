@@ -162,7 +162,7 @@ class Segmenter:
 
             contour = [(int(x[0]), int(x[1])) for x in contour]
             contour.append(contour[0]) # close it.
-            polygons_to_return.append(contour)
+            polygons_to_return.append((area, contour))
 
             # render a mask for inspection
             if write_contours_to_tmp:
@@ -171,6 +171,8 @@ class Segmenter:
                 # plt.imshow(blank_image)
                 cv2.imwrite(f"/tmp/contour_{i}.png", blank_image)
                 # print(contour)
+
+        polygons_to_return.sort()
 
         return polygons_to_return
 
