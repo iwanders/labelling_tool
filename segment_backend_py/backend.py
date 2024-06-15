@@ -116,32 +116,54 @@ class Segmenter:
         return mask.astype(np.uint8).squeeze()
 
     @staticmethod
+    def actual_area_of_contour(cnt):
+        cnt = cnt[:,0,:]
+        max_x = cnt[:, 0].max()
+        min_x = cnt[:, 0].min()
+        max_y = cnt[:, 1].max()
+        min_y = cnt[:, 1].min()
+
+        img_shape = (max_y - min_y, max_x - min_x)
+        if img_shape[0] == 0 or img_shape[1] == 0:
+            return 0.0
+        
+        blank_image = np.zeros(img_shape, np.uint8)
+        cv2.fillPoly(blank_image, pts=[cnt], color= 255, offset=(-min_x, -min_y))
+        area = np.count_nonzero(blank_image)
+        # cv2.imwrite(f"/tmp/area_cnt_{area}.png", blank_image)
+        return area
+
+    @staticmethod
     def create_contours(mask, area_ratio_minimum = 0.0):
-        print(mask)
-        print(type(mask))
-        total_area = mask.shape[0] * mask.shape[1]
+        # print(mask)
+        # print(type(mask))
         bw_img = Segmenter.mask_to_bw_img(mask)
-        print(bw_img.shape)
-        print("contour start")
+        total_area = bw_img.shape[0] * bw_img.shape[1]
+        # print(bw_img.shape)
+        # print(total_area)
+        # print("contour start")
         # contours, other = cv2.findContours(bw_img, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
         contours, hierarchy = cv2.findContours(bw_img, cv2.RETR_TREE, cv2.CHAIN_APPROX_TC89_L1)
         # contours, other = cv2.findContours(bw_img, cv2.RETR_TREE, cv2.CHAIN_APPROX_TC89_KCOS)
         hierarchy = hierarchy.squeeze()
-        print(contours)
-        print(hierarchy)
-        print("contour end")
+        # print(contours)
+        # print(hierarchy)
+        # print("contour end")
         for i, contour in enumerate(contours):
             hierarchy_info = hierarchy[i]
             next_i, previous_i, child_i, parent_i = hierarchy_info
             # we are only interested in contours at the root.
             if (parent_i != -1):
                 continue
-            print(hierarchy_info)
+            # print(hierarchy_info)
 
-            area = cv2.contourArea(contour)
+            # print(f"contour for {i} is : {contour}")
+            # area = cv2.contourArea(contour)
+            area = Segmenter.actual_area_of_contour(contour)
+            # print(f"{i}: {area} {total_area} ratio: {area_ratio_minimum} ")
+            # print(f"{i}: {area} ")
             if area < (total_area * area_ratio_minimum):
                 continue
-            print(f"{i}: {area} ")
             # print(f"Contour: {area}: {contour}")
             blank_image = np.zeros(bw_img.shape, np.uint8)
             cv2.fillPoly(blank_image, pts=[contour], color= (255,255,255))
