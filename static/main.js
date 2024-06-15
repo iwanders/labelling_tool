@@ -34,12 +34,13 @@ let sam_backend_url  = () => {
 /**
  * @brief init function that registers all callbacks and initialises state variables.
  */
-Control.prototype.init = function(static_layer, edit_layer, sam_mask_layer, map, edit_bar, projection, undo_interaction)
+Control.prototype.init = function(static_layer, edit_layer, sam_mask_layer,sam_vector_layer, map, edit_bar, projection, undo_interaction)
 {
   var self = this;
   this.static_layer = static_layer;
   this.edit_layer = edit_layer;
   this.sam_mask_layer = sam_mask_layer;
+  this.sam_vector_layer = sam_vector_layer;
   this.map = map;
   this.projection = projection;
   this.undo_interaction = undo_interaction;
@@ -113,6 +114,14 @@ Control.prototype.init = function(static_layer, edit_layer, sam_mask_layer, map,
   {
     console.log("Sam opacity change: ", event.target, event.target.value / 100.0);
     sam_mask_layer.setOpacity(event.target.value / 100.0);
+  });
+
+  self.sam_area_ratio = 0.01;
+  $("#sam_area_ratio").change(function (event)
+  {
+    console.log("Sam sam_area_ratio: ", event.target, event.target.value / 1000.0);
+    self.sam_area_ratio = event.target.value / 1000.0;
+    $("#sam_area_ratio_text").text(self.sam_area_ratio);
   });
 
   self.sam_threshold = 0.0;
@@ -435,9 +444,6 @@ Control.prototype.setEntry = function (entry)
 
     // Load the features from the server.
     self.loadFeatures();
-
-
-
   });
 
 }
@@ -493,6 +499,42 @@ Control.prototype.setSamImage = function(img_data_url) {
     imageExtent: [0, 0, width, height],
     interpolate: self.image_interpolation,
   }));
+}
+
+
+Control.prototype.setSamContours = function(contours) {
+  var self = this;
+  self.sam_vector_layer.getSource().clear();
+  console.log("contours", contours);
+  // Add the entries to the layer that we are interested in.
+  for (let contour of contours)
+  {
+    let poly = new ol.geom.Polygon(contour, "Polygon");
+    let feature = new ol.Feature({
+      geometry: poly
+    });
+    self.sam_vector_layer.getSource().addFeature(feature);
+  }
+  self.sam_vector_layer.setStyle(function(feature, view_res)
+  {
+    var color = ol.color.asArray("#FF00FF");
+    return new ol.style.Style({
+      stroke: new ol.style.Stroke({
+        color: color,
+        width: 3
+      }),
+      fill: new ol.style.Fill({
+        color: color
+      }),
+      image: new ol.style.Circle({
+          radius: 3,
+          fill: new ol.style.Fill({
+            color: color,
+          })
+      })
+    })
+  });
+
 }
 
 /**
@@ -987,6 +1029,7 @@ Control.prototype.samTrigger = function()
             points: z,
             image: image_bytes,
             threshold: self.sam_threshold,
+            area_ratio: self.sam_area_ratio,
         }),
         headers: new Headers({'content-type': 'application/json'}),
     }).then(
@@ -999,6 +1042,9 @@ Control.prototype.samTrigger = function()
         }
         //  console.log(img_payload);
         self.setSamImage(img_payload);
+        if (d.contours !== undefined) {
+          self.setSamContours(d.contours);
+        }
     });
   });
 

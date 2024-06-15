@@ -141,11 +141,11 @@ class Segmenter:
 
         # contours, hierarchy = cv2.findContours(bw_img, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
         contours, hierarchy = cv2.findContours(bw_img, cv2.RETR_TREE, cv2.CHAIN_APPROX_TC89_L1)
-        hierarchy = hierarchy.squeeze()
-
+        # hierarchy = hierarchy.squeeze()
+        print(hierarchy)
         for i, contour in enumerate(contours):
             contour = contour[:,0,:]
-            hierarchy_info = hierarchy[i]
+            hierarchy_info = hierarchy[0, i, :]
             next_i, previous_i, child_i, parent_i = hierarchy_info
 
             # we are only interested in contours at the root.
@@ -161,6 +161,7 @@ class Segmenter:
                 continue
 
             contour = [(int(x[0]), int(x[1])) for x in contour]
+            contour.append(contour[0]) # close it.
             polygons_to_return.append(contour)
 
             # render a mask for inspection
@@ -240,7 +241,8 @@ class Web:
         mask, scores, logits = self.segmenter.predict(points, multimask_output=False)
 
         # Create contours from this mask.
-        contours = Segmenter.create_contours(mask)
+        area_ratio_minimum = input_json.get("area_ratio", 0.0);
+        contours = Segmenter.create_contours(mask, area_ratio_minimum)
         input_json["contours"] = contours
 
         # Convert the mask to an image
