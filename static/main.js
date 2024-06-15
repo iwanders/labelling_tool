@@ -547,13 +547,12 @@ Control.prototype.setSamContours = function(contours) {
   console.log("source.getFeatures()", self.sam_vector_layer.getSource().getFeatures());
   //  console.log("sam_vector_layer.getFeatures()", self.sam_vector_layer.getFeatures());
 
-  //  source.refresh({force:true});
-  //  self.sam_vector_layer.changed();
 
   this.sam_vector_layer.setStyle({
-  "fill-color": "yellow",
-  "stroke-color": "black",
-  "stroke-width": 4});
+    "fill-color": "yellow",
+    "stroke-color": "black",
+    "stroke-width": 1
+  });
 
 }
 

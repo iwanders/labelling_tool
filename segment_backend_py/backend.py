@@ -138,6 +138,7 @@ class Segmenter:
 
         bw_img = Segmenter.mask_to_bw_img(mask)
         total_area = bw_img.shape[0] * bw_img.shape[1]
+        h = bw_img.shape[0]
 
         # contours, hierarchy = cv2.findContours(bw_img, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
         contours, hierarchy = cv2.findContours(bw_img, cv2.RETR_TREE, cv2.CHAIN_APPROX_TC89_L1)
@@ -160,7 +161,7 @@ class Segmenter:
             if area < (total_area * area_ratio_minimum):
                 continue
 
-            contour = [(int(x[0]), int(x[1])) for x in contour]
+            contour = [(int(x[0]), h - int(x[1])) for x in contour]
             contour.append(contour[0]) # close it.
             polygons_to_return.append((area, contour))
 
@@ -172,7 +173,8 @@ class Segmenter:
                 cv2.imwrite(f"/tmp/contour_{i}.png", blank_image)
                 # print(contour)
 
-        polygons_to_return.sort()
+        polygons_to_return.sort(reverse=True)
+        
 
         return polygons_to_return
 
