@@ -567,8 +567,11 @@ Control.prototype.samConvert = function () {
     feature.set("label", self.entry_current_label);
     var label_type = feature.getProperties()["label"];
     self.edit_layer.getSource().addFeature(feature);
+    self.entry_features.add(feature);
   }
   self.sam_contours = [];
+  
+  self.deferedSave();
 }
 
 /**
