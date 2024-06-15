@@ -117,7 +117,6 @@ class Segmenter:
 
     @staticmethod
     def actual_area_of_contour(cnt):
-        cnt = cnt[:,0,:]
         max_x = cnt[:, 0].max()
         min_x = cnt[:, 0].min()
         max_y = cnt[:, 1].max()
@@ -134,42 +133,45 @@ class Segmenter:
         return area
 
     @staticmethod
-    def create_contours(mask, area_ratio_minimum = 0.0):
-        # print(mask)
-        # print(type(mask))
+    def create_contours(mask, area_ratio_minimum = 0.0, write_contours_to_tmp=False):
+        polygons_to_return = []
+
         bw_img = Segmenter.mask_to_bw_img(mask)
         total_area = bw_img.shape[0] * bw_img.shape[1]
-        # print(bw_img.shape)
-        # print(total_area)
-        # print("contour start")
-        # contours, other = cv2.findContours(bw_img, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+
+        # contours, hierarchy = cv2.findContours(bw_img, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
         contours, hierarchy = cv2.findContours(bw_img, cv2.RETR_TREE, cv2.CHAIN_APPROX_TC89_L1)
-        # contours, other = cv2.findContours(bw_img, cv2.RETR_TREE, cv2.CHAIN_APPROX_TC89_KCOS)
         hierarchy = hierarchy.squeeze()
-        # print(contours)
-        # print(hierarchy)
-        # print("contour end")
+
         for i, contour in enumerate(contours):
+            contour = contour[:,0,:]
             hierarchy_info = hierarchy[i]
             next_i, previous_i, child_i, parent_i = hierarchy_info
+
             # we are only interested in contours at the root.
             if (parent_i != -1):
                 continue
-            # print(hierarchy_info)
 
-            # print(f"contour for {i} is : {contour}")
+            # Contour area is wrong, it is not in pixel space.
             # area = cv2.contourArea(contour)
             area = Segmenter.actual_area_of_contour(contour)
-            # print(f"{i}: {area} {total_area} ratio: {area_ratio_minimum} ")
-            # print(f"{i}: {area} ")
+
+            # Discard if it is not large enough.
             if area < (total_area * area_ratio_minimum):
                 continue
-            # print(f"Contour: {area}: {contour}")
-            blank_image = np.zeros(bw_img.shape, np.uint8)
-            cv2.fillPoly(blank_image, pts=[contour], color= (255,255,255))
-            # plt.imshow(blank_image)
-            cv2.imwrite(f"/tmp/contour_{i}.png", blank_image)
-    
+
+            contour = [(int(x[0]), int(x[1])) for x in contour]
+            polygons_to_return.append(contour)
+
+            # render a mask for inspection
+            if write_contours_to_tmp:
+                blank_image = np.zeros(bw_img.shape, np.uint8)
+                cv2.fillPoly(blank_image, pts=[contour], color= (255,255,255))
+                # plt.imshow(blank_image)
+                cv2.imwrite(f"/tmp/contour_{i}.png", blank_image)
+                # print(contour)
+
+        return polygons_to_return
 
 class Web:
     def __init__(self, segmenter):
@@ -239,6 +241,7 @@ class Web:
 
         # Create contours from this mask.
         contours = Segmenter.create_contours(mask)
+        input_json["contours"] = contours
 
         # Convert the mask to an image
         mask = Segmenter.mask_to_image(mask)
