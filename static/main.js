@@ -138,7 +138,7 @@ Control.prototype.init = function(static_layer, edit_layer, sam_mask_layer,sam_v
     self.sam_foreground = event.target.checked;
   });
 
-  sam_vector_layer.setOpacity(1.0);
+  sam_vector_layer.setOpacity(0.5);
   $("#sam_vector_opacity").change(function (event)
   {
     console.log("Sam sam_vector_layer change: ", event.target, event.target.value / 100.0);

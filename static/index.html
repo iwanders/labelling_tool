@@ -96,7 +96,7 @@
       SAM
       <button id="sam_trigger"  class="button">trigger</button>
       mask opacity<input type="range" id="sam_opacity" name="sam_opacity" min="0" max="100" value="50" />
-      poly opacity<input type="range" id="sam_vector_opacity" name="sam_vector_opacity" min="0" max="100" value="100" />
+      poly opacity<input type="range" id="sam_vector_opacity" name="sam_vector_opacity" min="0" max="100" value="50" />
       threshold:<input type="range" id="sam_threshold" name="sam_threshold" min="0" max="1000" value="0" /><span id="sam_threshold_text">0.0</span>
       accept count:<input type="range" id="sam_accept_count" name="sam_accept_count" min="1" max="10" value="10" /><span id="sam_accept_count_text">10</span>
       <label for="sam_foreground">foreground (g): </label><input type="checkbox" id="sam_foreground" name="sam_foreground" checked />
@@ -150,8 +150,22 @@
           });
       sam_mask_layer.setOpacity(0.5);
       var edit_layer = new ol.layer.Vector( { source: new ol.source.Vector() });
+      edit_layer.set("editable", true);
       var sam_vector_layer = new ol.layer.Vector( { source: new ol.source.Vector({features:[]}) });
+      sam_vector_layer.set("editable", false);
+      sam_vector_layer.setOpacity(0.5);
       let zoomFactorDelta = 2;
+      let interactions = ol.interaction.defaults.defaults({
+        dragPan: false, 
+        mouseWheelZoom: false
+      }).extend([
+          // disable inertia like scrolling, allow middle mouse drag
+        new ol.interaction.DragPan({
+          kinetic: false,
+          condition: e => (e.originalEvent.which == 2 || e.originalEvent.button == 4 )
+        }),
+        new ol.interaction.MouseWheelZoom({duration: 10, timeout:10})
+      ]);
       var map = new Map({
         layers: [
           static_layer, sam_mask_layer, edit_layer, sam_vector_layer, 
@@ -165,18 +179,13 @@
           zoom: 0.1 * zoomFactorDelta,
           maxZoom: 20 * zoomFactorDelta
         }),
-        interactions: ol.interaction.defaults.defaults({
-          dragPan: false, 
-          mouseWheelZoom: false
-        }).extend([
-            // disable inertia like scrolling, allow middle mouse drag
-          new ol.interaction.DragPan({
-            kinetic: false,
-            condition: e => (e.originalEvent.which == 2 || e.originalEvent.button == 4 )
-          }),
-          new ol.interaction.MouseWheelZoom({duration: 10, timeout:10})
-        ]),
+        interactions: interactions,
       });
+
+      // Why doesn't this work??
+      let edit_filter = function(feature, layer){
+        return layer.get('editable') == true;
+      };
 
 
       let drawPolygon = new ol.interaction.Draw({
@@ -189,9 +198,10 @@
             primary_action && !middle_mouse
           );
         },
+
+        filter: edit_filter,
       });
       drawPolygon.set("title", "Polygon (W)");
-      
 
       // Add the editbar
       var edit_bar = new ol.control.EditBar({
@@ -203,10 +213,14 @@
           Split:false,
           DrawHole:false,
           DrawRegular: {title:"Regular (R)"},
-          Select: {title:"Select (S)"},
+          Select: {title:"Select (S)",
+              filter: edit_filter},
           DrawPolygon: drawPolygon,
-          Transform: {title:"Transform (T)"},
-        }});
+          Transform: {title:"Transform (T)",
+              filter: edit_filter,
+          }
+        }
+      });
       map.addControl(edit_bar);
 
       window.document.addEventListener('keydown', function(event) {
