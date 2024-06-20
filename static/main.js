@@ -569,9 +569,21 @@ Control.prototype.samConvert = function () {
     self.edit_layer.getSource().addFeature(feature);
     self.entry_features.add(feature);
   }
-  self.sam_contours = [];
-  
   self.deferedSave();
+
+  self.samClear();
+}
+
+/// Wipes all SAM related information.
+Control.prototype.samClear = function () {
+  self.sam_contours = [];
+  self.sam_point_features = new Set([]);
+  
+  self.sam_vector_layer.getSource().clear();
+
+
+  let img_payload = "data:image/png;base64," + EMPTY_LAYER;
+  self.setSamImage(img_payload);
 }
 
 /**
