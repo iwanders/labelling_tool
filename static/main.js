@@ -448,7 +448,7 @@ Control.prototype.setEntry = function (entry)
     // Trigger sam if we have that.
     //  self.samTrigger();
     // Clear the sam layer.
-    self.sam_point_features = new Set([]);
+    self.samClear();
 
     // Load the features from the server.
     self.loadFeatures();
@@ -572,18 +572,18 @@ Control.prototype.samConvert = function () {
   self.deferedSave();
 
   self.samClear();
+
+  self.updateLayers();
 }
 
 /// Wipes all SAM related information.
 Control.prototype.samClear = function () {
-  self.sam_contours = [];
-  self.sam_point_features = new Set([]);
+  this.sam_contours = [];
+  this.sam_point_features = new Set([]);
   
-  self.sam_vector_layer.getSource().clear();
+  this.sam_vector_layer.getSource().clear();
 
-
-  let img_payload = "data:image/png;base64," + EMPTY_LAYER;
-  self.setSamImage(img_payload);
+  this.setSamImage(EMPTY_LAYER);
 }
 
 /**
