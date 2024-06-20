@@ -120,17 +120,28 @@ Control.prototype.init = function(static_layer, edit_layer, sam_mask_layer,sam_v
   self.sam_accept_count = 10;
   $("#sam_accept_count").change(function (event)
   {
-    console.log("Sam sam_accept_count: ", event.target, event.target.value / 1000.0);
-    self.sam_accept_count = event.target.value;
+    let old_value = self.sam_accept_count;
+    let new_value = event.target.value
+    self.sam_accept_count = new_value;
     $("#sam_accept_count_text").text(self.sam_accept_count);
+
+    if (old_value != new_value) {
+      self.samTrigger();
+    }
   });
 
   self.sam_threshold = 0.0;
   $("#sam_threshold").change(function (event)
   {
-    self.sam_threshold = event.target.value / 100.0;
+    let new_value = event.target.value;
+    let old_value = self.sam_threshold;
+
+    self.sam_threshold = new_value;
     $("#sam_threshold_text").text(self.sam_threshold);
-    self.samTrigger();
+
+    if (old_value != new_value) {
+      self.samTrigger();
+    }
   });
 
   self.sam_foreground = true;
