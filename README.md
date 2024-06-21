@@ -56,7 +56,7 @@ Setup:
   - `pip install -r requirements.txt`
   - `SAM_PTH=/path/to/sam_vit_b_01ec64.pth ./backend.py host` to run the backend.
 
-It is also possibly to run the SAM steps from the commandline with `./backend.py sam --help` and output the mask to a file.
+It is also possibly to run the SAM steps from the commandline with `./backend.py sam --help` and output the mask to a file. Using the other SAM checkpoints should be possible, but they require a new entry in the `SAM_LOOKUP` dictionary to instantiate the correct model.
 
 Points (foreground and background) points can be created by clicking the 'point' tool from the edit bar. Whenever the points are changed, a request is fired off to the backend. The backend checks if this is the same image as previously, if it is it reuses the previously calculated embeddings, else it calculates them. The return from the SAM backend contains a set of proposed contours, in the UI there's a slider to select only the first 'n' largest polygons. To convert the proposal to actual labels press the convert button in the SAM bar, this changes the proposal over to a real label and removes the current SAM points.
 
